@@ -27,7 +27,7 @@ export function ImageUploader({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       setError(null);
 
       // Validate type
@@ -36,6 +36,22 @@ export function ImageUploader({
           "Unsupported file format. Please use JPEG, PNG, WebP, AVIF, or GIF."
         );
         return;
+      }
+
+      // Security: Validate Magic Bytes
+      try {
+        const { validateFileSignature } = await import("@/lib/security");
+        const isValidSignature = await validateFileSignature(file);
+
+        if (!isValidSignature) {
+          setError(
+            "Security Alert: File content does not match its extension. Please allow valid image files only."
+          );
+          return;
+        }
+      } catch (e) {
+        // Fallback or ignore if validation fails technically (e.g. 0 byte file)
+        console.warn("Signature validation failed", e);
       }
 
       // Validate size

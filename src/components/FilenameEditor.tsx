@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { sanitizeFilename } from "@/lib/utils";
+import { strictSanitizeFilename } from "@/lib/security";
 import type { SupportedFormat } from "@/types";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -25,7 +25,7 @@ export function FilenameEditor({
     const lastDot = originalFilename.lastIndexOf(".");
     const base =
       lastDot > 0 ? originalFilename.slice(0, lastDot) : originalFilename;
-    const newFilename = `${base}_compressed.${format}`;
+    const newFilename = strictSanitizeFilename(`${base}_compressed.${format}`);
     setFilename(newFilename);
     onChange?.(newFilename);
   }, [originalFilename, format, onChange]);
@@ -36,7 +36,7 @@ export function FilenameEditor({
 
   const handleBlur = () => {
     // Sanitize on blur
-    const sanitized = sanitizeFilename(filename);
+    const sanitized = strictSanitizeFilename(filename);
     // Ensure correct extension
     const lastDot = sanitized.lastIndexOf(".");
     const base = lastDot > 0 ? sanitized.slice(0, lastDot) : sanitized;
