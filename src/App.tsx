@@ -7,10 +7,13 @@ import { ImageUploader } from "@/components/ImageUploader";
 import { Navbar } from "@/components/Navbar";
 import { StatsDisplay } from "@/components/StatsDisplay";
 import { useCompressionWorker } from "@/hooks/useCompressionWorker";
+import { PrivacyPolicy } from "@/pages/PrivacyPolicy";
+import { TermsOfService } from "@/pages/TermsOfService";
 import { useImageStore } from "@/store/imageStore";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Route, Routes } from "react-router-dom";
 
-const App = () => {
+function HomePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [outputFilename, setOutputFilename] = useState("");
 
@@ -168,6 +171,16 @@ const App = () => {
 
       <Footer />
     </div>
+  );
+}
+
+const App = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
+    </Routes>
   );
 };
 

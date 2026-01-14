@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { HelpCircle, Image as ImageIcon, Upload } from "lucide-react";
+import { Image as ImageIcon, Upload } from "lucide-react";
 
 interface NavbarProps {
   onUploadClick?: () => void;
@@ -30,18 +29,6 @@ export function Navbar({ onUploadClick }: NavbarProps) {
             <Upload className="w-4 h-4 mr-2" />
             Upload Image
           </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-sm hover:bg-white/5"
-          >
-            <HelpCircle className="w-5 h-5 text-muted-foreground" />
-          </Button>
-
-          <div className="flex items-center gap-2 px-2">
-            <Switch />
-          </div>
         </div>
       </div>
     </header>

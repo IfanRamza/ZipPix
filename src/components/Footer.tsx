@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import Github from "../assets/github.svg";
 
 export function Footer() {
@@ -8,12 +9,15 @@ export function Footer() {
           <p>© 2025 ZipPix. Privacy-first image compression.</p>
 
           <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-cyan-400 transition-colors">
+            <Link
+              to="/privacy"
+              className="hover:text-cyan-400 transition-colors"
+            >
               Privacy Policy
-            </a>
-            <a href="#" className="hover:text-cyan-400 transition-colors">
+            </Link>
+            <Link to="/terms" className="hover:text-cyan-400 transition-colors">
               Terms of Service
-            </a>
+            </Link>
             <a
               href="https://github.com/IfanRamza/ZipPix"
               target="_blank"
