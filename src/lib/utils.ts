@@ -55,8 +55,9 @@ export function formatBytes(bytes: number, decimals: number = 2): string {
 
 /**
  * Validate file type against allowed image types
+ * @param fileOrType - Either a File object or a MIME type string
  */
-export function validateFileType(file: File): boolean {
+export function validateFileType(fileOrType: File | string): boolean {
   const validTypes = [
     "image/jpeg",
     "image/png",
@@ -64,7 +65,9 @@ export function validateFileType(file: File): boolean {
     "image/avif",
     "image/gif",
   ];
-  return validTypes.includes(file.type);
+  const mimeType =
+    typeof fileOrType === "string" ? fileOrType : fileOrType.type;
+  return validTypes.includes(mimeType);
 }
 
 /**

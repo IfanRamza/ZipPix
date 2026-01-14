@@ -111,7 +111,7 @@ export async function getImageDimensions(
 /**
  * Get MIME type for format
  */
-function getMimeType(format: SupportedFormat): string {
+export function getMimeType(format: SupportedFormat): string {
   const mimeTypes: Record<SupportedFormat, string> = {
     jpeg: "image/jpeg",
     png: "image/png",
