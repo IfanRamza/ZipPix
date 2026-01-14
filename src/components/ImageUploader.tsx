@@ -1,3 +1,4 @@
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,18 +24,21 @@ export function ImageUploader({
   maxSize = MAX_FILE_SIZE,
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processFile = useCallback(
     async (file: File) => {
       setError(null);
+      setIsVerifying(true);
 
       // Validate type
       if (!validateFileType(file)) {
         setError(
           "Unsupported file format. Please use JPEG, PNG, WebP, AVIF, or GIF."
         );
+        setIsVerifying(false);
         return;
       }
 
@@ -47,6 +51,7 @@ export function ImageUploader({
           setError(
             "Security Alert: File content does not match its extension. Please allow valid image files only."
           );
+          setIsVerifying(false);
           return;
         }
       } catch (e) {
@@ -59,9 +64,11 @@ export function ImageUploader({
         setError(
           `File size exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit.`
         );
+        setIsVerifying(false);
         return;
       }
 
+      setIsVerifying(false);
       onUpload(file);
     },
     [maxSize, onUpload]
@@ -69,7 +76,7 @@ export function ImageUploader({
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDragging(true);
+    if (!isVerifying) setIsDragging(true);
   };
 
   const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
@@ -80,6 +87,8 @@ export function ImageUploader({
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
+
+    if (isVerifying) return;
 
     if (e.dataTransfer.files?.[0]) {
       processFile(e.dataTransfer.files[0]);
@@ -104,12 +113,13 @@ export function ImageUploader({
           isDragging
             ? "border-cyan-500 bg-cyan-500/5 scale-[1.02]"
             : "border-border/50 hover:border-cyan-500/50",
-          error && "border-red-500/50"
+          error && "border-red-500/50",
+          isVerifying && "cursor-wait opacity-80"
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => !isVerifying && fileInputRef.current?.click()}
       >
         <CardContent className="flex flex-col items-center justify-center py-16 px-4">
           <input
@@ -118,6 +128,7 @@ export function ImageUploader({
             className="hidden"
             accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
             onChange={handleFileSelect}
+            disabled={isVerifying}
           />
 
           <div
@@ -128,30 +139,49 @@ export function ImageUploader({
                 : "bg-linear-to-br from-cyan-500/10 to-blue-500/10"
             )}
           >
-            <Upload
-              className={cn(
-                "w-10 h-10 transition-all",
-                isDragging ? "text-cyan-400 scale-110" : "text-cyan-500/80"
-              )}
-            />
+            {isVerifying ? (
+              <LoadingSpinner size={40} className="text-cyan-400" />
+            ) : (
+              <Upload
+                className={cn(
+                  "w-10 h-10 transition-all",
+                  isDragging ? "text-cyan-400 scale-110" : "text-cyan-500/80"
+                )}
+              />
+            )}
           </div>
 
           <h3 className="text-xl font-semibold mb-2">
-            {isDragging ? "Drop it!" : "Drop your image here"}
+            {isVerifying
+              ? "Verifying file..."
+              : isDragging
+              ? "Drop it!"
+              : "Drop your image here"}
           </h3>
           <p className="text-muted-foreground text-center mb-8">
-            or click to browse
+            {isVerifying
+              ? "Checking magic bytes & details"
+              : "or click to browse"}
           </p>
 
           <Button
             size="lg"
             onClick={(e) => {
               e.stopPropagation();
+              if (isVerifying) return;
               fileInputRef.current?.click();
             }}
+            disabled={isVerifying}
             className="rounded-sm bg-linear-to-r from-cyan-500 to-blue-500 hover:opacity-90 shadow-lg shadow-cyan-500/25 min-w-[200px]"
           >
-            Select Image
+            {isVerifying ? (
+              <>
+                <LoadingSpinner className="mr-2 text-white" size={16} />
+                Verifying...
+              </>
+            ) : (
+              "Select Image"
+            )}
           </Button>
 
           {error && (

@@ -29,12 +29,25 @@ export function ControlPanel({
   onReset,
 }: ControlPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Local state for inputs to allow smooth editing/sliding
+  const [localQuality, setLocalQuality] = useState(settings.quality);
+  const [localEffort, setLocalEffort] = useState(settings.effort || 4);
   const [widthInput, setWidthInput] = useState(
     settings.width?.toString() || ""
   );
   const [heightInput, setHeightInput] = useState(
     settings.height?.toString() || ""
   );
+
+  // Sync upstream changes to local state
+  useEffect(() => {
+    setLocalQuality(settings.quality);
+  }, [settings.quality]);
+
+  useEffect(() => {
+    setLocalEffort(settings.effort || 4);
+  }, [settings.effort]);
 
   useEffect(() => {
     if (originalDimensions && !settings.width && !settings.height) {
@@ -43,12 +56,33 @@ export function ControlPanel({
     }
   }, [originalDimensions, settings.width, settings.height]);
 
+  // Debounce Quality Updates
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localQuality !== settings.quality) {
+        onSettingsChange({ quality: localQuality });
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [localQuality, settings.quality, onSettingsChange]);
+
+  // Debounce Effort Updates
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localEffort !== (settings.effort || 4)) {
+        onSettingsChange({ effort: localEffort });
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [localEffort, settings.effort, onSettingsChange]);
+
   const handleFormatChange = (value: string) => {
     onSettingsChange({ format: value as SupportedFormat });
   };
 
   const handleQualityChange = (value: number[]) => {
-    onSettingsChange({ quality: value[0] });
+    // Update local immediately for smooth UI, debounced effect will trigger update
+    setLocalQuality(value[0]);
   };
 
   const handleResizeChange = (dim: "width" | "height", value: string) => {
@@ -60,6 +94,8 @@ export function ControlPanel({
         const aspect = originalDimensions.width / originalDimensions.height;
         const newHeight = Math.round(num / aspect);
         setHeightInput(newHeight.toString());
+        // Debounce or immediate? Resize usually expects immediate feedback but debounce is safer for performance
+        // For inputs, we can debounce too, but let's keep it direct for now as it's not a slider stream
         onSettingsChange({ width: num, height: newHeight });
       } else {
         onSettingsChange({ width: num });
@@ -169,11 +205,11 @@ export function ControlPanel({
           <div className="flex justify-between">
             <Label>Quality</Label>
             <span className="text-sm font-mono text-muted-foreground">
-              {settings.quality}%
+              {localQuality}%
             </span>
           </div>
           <Slider
-            value={[settings.quality]}
+            value={[localQuality]}
             onValueChange={handleQualityChange}
             max={100}
             min={1}
@@ -256,16 +292,14 @@ export function ControlPanel({
                 <div className="flex justify-between items-center">
                   <Label className="text-sm">Compression Effort</Label>
                   <span className="text-xs font-mono text-muted-foreground">
-                    {settings.effort}/10
+                    {localEffort}/6
                   </span>
                 </div>
                 <Slider
-                  value={[settings.effort]}
-                  onValueChange={(value) =>
-                    onSettingsChange({ effort: value[0] })
-                  }
+                  value={[localEffort]}
+                  onValueChange={(value) => setLocalEffort(value[0])}
                   min={0}
-                  max={10}
+                  max={6}
                   step={1}
                   className="py-1"
                 />

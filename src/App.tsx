@@ -4,14 +4,32 @@ import { ControlPanel } from "@/components/ControlPanel";
 import { FilenameEditor } from "@/components/FilenameEditor";
 import { Footer } from "@/components/Footer";
 import { ImageUploader } from "@/components/ImageUploader";
+import { PageLoading } from "@/components/LoadingSpinner";
 import { Navbar } from "@/components/Navbar";
 import { StatsDisplay } from "@/components/StatsDisplay";
 import { useCompressionWorker } from "@/hooks/useCompressionWorker";
-import { PrivacyPolicy } from "@/pages/PrivacyPolicy";
-import { TermsOfService } from "@/pages/TermsOfService";
 import { useImageStore } from "@/store/imageStore";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Route, Routes } from "react-router-dom";
+
+// Lazy load page components
+const PrivacyPolicy = lazy(() =>
+  import("./pages/PrivacyPolicy").then((module) => ({
+    default: module.PrivacyPolicy,
+  }))
+);
+const TermsOfService = lazy(() =>
+  import("./pages/TermsOfService").then((module) => ({
+    default: module.TermsOfService,
+  }))
+);
 
 function HomePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -176,11 +194,13 @@ function HomePage() {
 
 const App = () => {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/terms" element={<TermsOfService />} />
-    </Routes>
+    <Suspense fallback={<PageLoading />}>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+      </Routes>
+    </Suspense>
   );
 };
 
