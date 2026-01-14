@@ -1,4 +1,5 @@
 export type SupportedFormat = "jpeg" | "png" | "webp" | "avif";
+export type ChromaSubsampling = "4:4:4" | "4:2:2" | "4:2:0";
 
 export interface CompressionSettings {
   format: SupportedFormat;
@@ -7,6 +8,10 @@ export interface CompressionSettings {
   height?: number;
   maintainAspectRatio: boolean;
   stripMetadata: boolean;
+  // Advanced settings
+  effort: number; // 0-10, higher = slower but better compression
+  progressive: boolean; // Progressive JPEG
+  chromaSubsampling: ChromaSubsampling; // Color subsampling
 }
 
 export interface ImageDimensions {

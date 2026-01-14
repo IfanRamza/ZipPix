@@ -109,6 +109,45 @@ export function ControlPanel({
           </Button>
         </div>
 
+        {/* Preset Buttons */}
+        <div className="space-y-3">
+          <Label>Quick Presets</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8"
+              onClick={() => onSettingsChange({ format: "webp", quality: 85 })}
+            >
+              🌐 Web
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8"
+              onClick={() => onSettingsChange({ format: "png", quality: 95 })}
+            >
+              🖨️ Print
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8"
+              onClick={() => onSettingsChange({ format: "png", quality: 100 })}
+            >
+              📦 Archive
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8"
+              onClick={() => onSettingsChange({ format: "webp", quality: 60 })}
+            >
+              ⚡ Max Compress
+            </Button>
+          </div>
+        </div>
+
         {/* Format Selection */}
         <div className="space-y-3">
           <Label>Output Format</Label>
@@ -197,7 +236,8 @@ export function ControlPanel({
           </Button>
 
           {showAdvanced && (
-            <div className="mt-4 space-y-4 p-4 bg-background/50 rounded border border-border/50 animate-in fade-in">
+            <div className="mt-4 space-y-5 p-4 bg-background/50 rounded border border-border/50 animate-in fade-in">
+              {/* Strip Metadata */}
               <div className="flex items-center justify-between">
                 <Label htmlFor="strip-meta" className="text-sm">
                   Strip Metadata
@@ -210,9 +250,81 @@ export function ControlPanel({
                   }
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Automatically removes GPS, EXIF, and other sensitive data.
-              </p>
+
+              {/* Effort/Speed Slider */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <Label className="text-sm">Compression Effort</Label>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {settings.effort}/10
+                  </span>
+                </div>
+                <Slider
+                  value={[settings.effort]}
+                  onValueChange={(value) =>
+                    onSettingsChange({ effort: value[0] })
+                  }
+                  min={0}
+                  max={10}
+                  step={1}
+                  className="py-1"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Higher = smaller file, slower processing
+                </p>
+              </div>
+
+              {/* Progressive JPEG - Only show for JPEG */}
+              {settings.format === "jpeg" && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="progressive" className="text-sm">
+                      Progressive JPEG
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Loads gradually instead of line by line
+                    </p>
+                  </div>
+                  <Switch
+                    id="progressive"
+                    checked={settings.progressive}
+                    onCheckedChange={(checked) =>
+                      onSettingsChange({ progressive: checked })
+                    }
+                  />
+                </div>
+              )}
+
+              {/* Chroma Subsampling - Only for JPEG/WebP */}
+              {(settings.format === "jpeg" || settings.format === "webp") && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Chroma Subsampling</Label>
+                  <Select
+                    value={settings.chromaSubsampling}
+                    onValueChange={(value) =>
+                      onSettingsChange({
+                        chromaSubsampling: value as "4:4:4" | "4:2:2" | "4:2:0",
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="4:4:4">
+                        4:4:4 - Best quality
+                      </SelectItem>
+                      <SelectItem value="4:2:2">4:2:2 - Balanced</SelectItem>
+                      <SelectItem value="4:2:0">
+                        4:2:0 - Smallest size
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Reduces color resolution for smaller files
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

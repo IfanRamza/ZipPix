@@ -15,8 +15,26 @@ interface StatsDisplayProps {
   compressedSize: number;
   originalDimensions: { width: number; height: number };
   compressedDimensions?: { width: number; height: number };
+  originalFormat?: string;
+  compressedFormat?: string;
   isCompressing?: boolean;
   stripMetadata?: boolean;
+}
+
+// Format display helper
+function formatTypeLabel(format: string): string {
+  const labels: Record<string, string> = {
+    "image/jpeg": "JPEG",
+    "image/png": "PNG",
+    "image/webp": "WebP",
+    "image/avif": "AVIF",
+    "image/gif": "GIF",
+    jpeg: "JPEG",
+    png: "PNG",
+    webp: "WebP",
+    avif: "AVIF",
+  };
+  return labels[format] || format.toUpperCase();
 }
 
 export function StatsDisplay({
@@ -24,6 +42,8 @@ export function StatsDisplay({
   compressedSize,
   originalDimensions,
   compressedDimensions,
+  originalFormat,
+  compressedFormat,
   isCompressing = false,
   stripMetadata = true,
 }: StatsDisplayProps) {
@@ -41,9 +61,19 @@ export function StatsDisplay({
 
           {/* Original */}
           <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Original
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Original
+              </p>
+              {originalFormat && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] h-4 px-1.5 rounded-sm bg-background/50"
+                >
+                  {formatTypeLabel(originalFormat)}
+                </Badge>
+              )}
+            </div>
             <p className="text-2xl font-bold tracking-tight">
               {formatBytes(originalSize)}
             </p>
@@ -54,9 +84,19 @@ export function StatsDisplay({
 
           {/* Compressed */}
           <div className="space-y-1 text-right">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Compressed
-            </p>
+            <div className="flex items-center justify-end gap-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Compressed
+              </p>
+              {compressedFormat && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] h-4 px-1.5 rounded-sm bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                >
+                  {formatTypeLabel(compressedFormat)}
+                </Badge>
+              )}
+            </div>
             <p className="text-2xl font-bold tracking-tight bg-linear-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
               {isCompressing ? "..." : formatBytes(compressedSize)}
             </p>

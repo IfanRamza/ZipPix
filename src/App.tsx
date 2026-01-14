@@ -67,6 +67,9 @@ const App = () => {
         height: originalImage.dimensions.height,
         maintainAspectRatio: true,
         stripMetadata: true,
+        effort: 4,
+        progressive: true,
+        chromaSubsampling: "4:2:0",
       });
     }
   };
@@ -112,6 +115,13 @@ const App = () => {
                 originalSize={originalImage.size}
                 compressedSize={compressedSize}
                 originalDimensions={originalImage.dimensions}
+                compressedDimensions={
+                  settings.width && settings.height
+                    ? { width: settings.width, height: settings.height }
+                    : undefined
+                }
+                originalFormat={originalImage.file.type}
+                compressedFormat={settings.format}
                 isCompressing={status.isCompressing}
                 stripMetadata={settings.stripMetadata}
               />

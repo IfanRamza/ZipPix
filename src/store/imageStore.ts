@@ -7,6 +7,9 @@ const DEFAULT_SETTINGS: CompressionSettings = {
   quality: 85,
   maintainAspectRatio: true,
   stripMetadata: true,
+  effort: 4,
+  progressive: true,
+  chromaSubsampling: "4:2:0",
 };
 
 export const useImageStore = create<AppState>((set, get) => ({
