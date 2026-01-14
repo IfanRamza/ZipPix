@@ -1,0 +1,118 @@
+import { getImageDimensions } from "@/lib/imageProcessor";
+import type { AppState, CompressionSettings } from "@/types";
+import { create } from "zustand";
+
+const DEFAULT_SETTINGS: CompressionSettings = {
+  format: "webp",
+  quality: 85,
+  maintainAspectRatio: true,
+  stripMetadata: true,
+};
+
+export const useImageStore = create<AppState>((set, get) => ({
+  // State
+  originalImage: null,
+  compressedImage: null,
+  compressedSize: 0,
+  compressedUrl: null,
+  settings: DEFAULT_SETTINGS,
+  status: {
+    isCompressing: false,
+    progress: 0,
+    error: undefined,
+  },
+  sliderPosition: 50,
+
+  // Actions
+  setOriginalImage: async (file: File) => {
+    // Revoke old URL if exists
+    const state = get();
+    if (state.originalImage?.previewUrl) {
+      URL.revokeObjectURL(state.originalImage.previewUrl);
+    }
+    if (state.compressedUrl) {
+      URL.revokeObjectURL(state.compressedUrl);
+    }
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+
+    // Get dimensions
+    const dimensions = await getImageDimensions(file);
+
+    set({
+      originalImage: {
+        file,
+        previewUrl,
+        size: file.size,
+        dimensions,
+      },
+      // Reset compressed state
+      compressedImage: null,
+      compressedSize: 0,
+      compressedUrl: null,
+      status: { isCompressing: false, progress: 0, error: undefined },
+      sliderPosition: 50,
+    });
+  },
+
+  updateSettings: (newSettings: Partial<CompressionSettings>) => {
+    set((state) => ({
+      settings: { ...state.settings, ...newSettings },
+    }));
+  },
+
+  setCompressedImage: (blob: Blob) => {
+    // Revoke old URL if exists
+    const state = get();
+    if (state.compressedUrl) {
+      URL.revokeObjectURL(state.compressedUrl);
+    }
+
+    const compressedUrl = URL.createObjectURL(blob);
+
+    set({
+      compressedImage: blob,
+      compressedSize: blob.size,
+      compressedUrl,
+      status: { isCompressing: false, progress: 100, error: undefined },
+    });
+  },
+
+  reset: () => {
+    // Cleanup URLs
+    const state = get();
+    if (state.originalImage?.previewUrl) {
+      URL.revokeObjectURL(state.originalImage.previewUrl);
+    }
+    if (state.compressedUrl) {
+      URL.revokeObjectURL(state.compressedUrl);
+    }
+
+    set({
+      originalImage: null,
+      compressedImage: null,
+      compressedSize: 0,
+      compressedUrl: null,
+      settings: DEFAULT_SETTINGS,
+      status: { isCompressing: false, progress: 0, error: undefined },
+      sliderPosition: 50,
+    });
+  },
+
+  setSliderPosition: (pos: number) => {
+    set({ sliderPosition: Math.max(0, Math.min(100, pos)) });
+  },
+
+  setError: (error: string | undefined) => {
+    set((state) => ({
+      status: { ...state.status, error, isCompressing: false },
+    }));
+  },
+
+  setProcessing: (isCompressing: boolean) => {
+    set((state) => ({
+      status: { ...state.status, isCompressing },
+    }));
+  },
+}));

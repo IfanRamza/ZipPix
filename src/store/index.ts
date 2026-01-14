@@ -1,2 +1,1 @@
-// Store will be added here
-export {};
+export { useImageStore } from "./imageStore";
