@@ -1,68 +1,240 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================
+   ZipPix - Arctic Blue Theme
+   ============================================ */
+
+@theme inline {
+  /* Sharp border radius for geometric look */
+  --radius-sm: 0.125rem; /* 2px */
+  --radius-md: 0.25rem; /* 4px */
+  --radius-lg: 0.375rem; /* 6px */
+  --radius-xl: 0.5rem; /* 8px */
+  --radius-2xl: 0.625rem; /* 10px */
+  --radius-3xl: 0.75rem; /* 12px */
+  --radius-4xl: 1rem; /* 16px */
+  --radius: 0.25rem; /* 4px - Default */
+
+  /* Color mappings to CSS variables */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+/* ============================================
+   Light Mode (Default)
+   ============================================ */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  --radius: 0.25rem;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  /* Light mode colors */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.71 0.15 185); /* Cyan #06b6d4 */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.62 0.21 255); /* Blue #3b82f6 */
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.71 0.15 185); /* Cyan ring */
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* ============================================
+   Dark Mode - Arctic Blue Theme
+   ============================================ */
+.dark {
+  /* Deep navy background */
+  --background: oklch(0.13 0.02 240); /* #0a0f14 */
+  --foreground: oklch(0.98 0 0); /* Near white */
+
+  /* Card backgrounds with slight transparency feel */
+  --card: oklch(0.16 0.02 240); /* #12171d */
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.16 0.02 240);
+  --popover-foreground: oklch(0.98 0 0);
+
+  /* Primary: Cyan */
+  --primary: oklch(0.71 0.15 185); /* #06b6d4 */
+  --primary-foreground: oklch(1 0 0);
+
+  /* Secondary */
+  --secondary: oklch(0.22 0.02 240);
+  --secondary-foreground: oklch(0.98 0 0);
+
+  /* Muted text */
+  --muted: oklch(0.22 0.02 240);
+  --muted-foreground: oklch(0.65 0.02 240); /* #8b95a5 */
+
+  /* Accent: Blue */
+  --accent: oklch(0.62 0.21 255); /* #3b82f6 */
+  --accent-foreground: oklch(1 0 0);
+
+  /* Destructive: Red */
+  --destructive: oklch(0.65 0.2 25);
+
+  /* Borders */
+  --border: oklch(0.25 0.02 240); /* #1a2332 */
+  --input: oklch(0.28 0.02 240);
+  --ring: oklch(0.71 0.15 185); /* Cyan ring */
+
+  /* Charts */
+  --chart-1: oklch(0.71 0.15 185); /* Cyan */
+  --chart-2: oklch(0.62 0.21 255); /* Blue */
+  --chart-3: oklch(0.65 0.15 160); /* Teal */
+  --chart-4: oklch(0.7 0.18 280); /* Purple */
+  --chart-5: oklch(0.75 0.12 200); /* Sky */
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+/* ============================================
+   Base Styles
+   ============================================ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-  a:hover {
-    color: #747bff;
+
+  body {
+    @apply bg-background text-foreground antialiased;
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+/* ============================================
+   Custom Utilities
+   ============================================ */
+@layer utilities {
+  /* Glassmorphism effect */
+  .glass {
+    background: rgba(18, 23, 29, 0.7);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-subtle {
+    background: rgba(18, 23, 29, 0.4);
+    backdrop-filter: blur(12px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Gradient text */
+  .text-gradient-primary {
+    background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+  }
+
+  .bg-gradient-dark {
+    background: linear-gradient(135deg, #0a0f14 0%, #12171d 50%, #0a0f14 100%);
+  }
+
+  /* Glow effects */
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+  }
+
+  .glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+
+  /* Gradient border */
+  .border-gradient {
+    position: relative;
+    border: none;
+    background: linear-gradient(135deg, #06b6d4, #3b82f6);
+    padding: 1px;
+  }
+
+  .border-gradient > * {
+    background: var(--background);
+    border-radius: inherit;
+  }
+}
+
+/* ============================================
+   Custom Animations
+   ============================================ */
+@layer utilities {
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-fade-in-slow {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  .animate-glow-pulse {
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes slideUp {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.5);
   }
 }
