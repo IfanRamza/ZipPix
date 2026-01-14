@@ -125,6 +125,24 @@ export function ControlPanel({
     onReset?.();
   };
 
+  // Determine current preset value based on dimensions
+  const getPresetValue = () => {
+    if (!originalDimensions || !settings.width) return "custom";
+
+    // Check for exact matches with small tolerance for rounding
+    const currentRatio = settings.width / originalDimensions.width;
+    const presets = [0.25, 0.5, 0.75, 1, 2, 4];
+
+    for (const ratio of presets) {
+      // 1% tolerance
+      if (Math.abs(currentRatio - ratio) < 0.01) {
+        return (ratio * 100).toString();
+      }
+    }
+
+    return "custom";
+  };
+
   return (
     <Card className="border-border/50 bg-background/40 backdrop-blur-xl rounded h-fit animate-in fade-in duration-300">
       <CardContent className="p-6 space-y-8">
@@ -235,6 +253,37 @@ export function ControlPanel({
               )}
             </Button>
           </div>
+
+          <Select
+            value={getPresetValue()}
+            onValueChange={(val) => {
+              if (!val || val === "custom" || !originalDimensions) return;
+              const percent = parseInt(val, 10);
+              if (isNaN(percent)) return;
+
+              const ratio = percent / 100;
+              const newWidth = Math.round(originalDimensions.width * ratio);
+              const newHeight = Math.round(originalDimensions.height * ratio);
+
+              setWidthInput(newWidth.toString());
+              setHeightInput(newHeight.toString());
+              onSettingsChange({ width: newWidth, height: newHeight });
+            }}
+          >
+            <SelectTrigger className="w-full h-8 text-xs mb-2">
+              <SelectValue placeholder="Scale Preset (e.g. 50%)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="25">25% (Thumbnail)</SelectItem>
+              <SelectItem value="50">50% (Half Size)</SelectItem>
+              <SelectItem value="75">75% (Reduced)</SelectItem>
+              <SelectItem value="100">100% (Original)</SelectItem>
+              <SelectItem value="200">200% (2x Upscale)</SelectItem>
+              <SelectItem value="400">400% (4x Upscale)</SelectItem>
+              <SelectItem value="custom">Custom Dimensions</SelectItem>
+            </SelectContent>
+          </Select>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <span className="text-[10px] text-muted-foreground uppercase">

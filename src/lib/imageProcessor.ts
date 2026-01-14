@@ -5,6 +5,11 @@ import type { CompressionSettings, SupportedFormat } from "@/types";
  * Note: @squoosh/lib requires Node.js environment with WASM
  * For browser, we use Canvas API as fallback
  */
+import pica from "pica";
+
+/**
+ * Compress an image using Canvas API or Pica for high quality resizing
+ */
 export async function compressImage(
   file: File,
   settings: CompressionSettings
@@ -13,11 +18,9 @@ export async function compressImage(
     const img = new Image();
     const url = URL.createObjectURL(file);
 
-    img.onload = () => {
+    img.onload = async () => {
       try {
-        const canvas = document.createElement("canvas");
-
-        // Apply resize if specified
+        // Calculate target dimensions
         let width = settings.width || img.width;
         let height = settings.height || img.height;
 
@@ -41,6 +44,45 @@ export async function compressImage(
           }
         }
 
+        // Check if resizing is needed
+        const needsResize = width !== img.width || height !== img.height;
+
+        // Use Pica for High Quality Resizing (Lanczos)
+        if (needsResize) {
+          const picaInstance = pica();
+          const fromCanvas = document.createElement("canvas");
+          fromCanvas.width = img.width;
+          fromCanvas.height = img.height;
+          const ctx = fromCanvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas context missing");
+          ctx.drawImage(img, 0, 0);
+
+          const toCanvas = document.createElement("canvas");
+          toCanvas.width = width;
+          toCanvas.height = height;
+
+          // Pica resize
+          await picaInstance.resize(fromCanvas, toCanvas, {
+            quality: 3, // Lanczos3
+            unsharpAmount: 80,
+            unsharpRadius: 0.6,
+            unsharpThreshold: 2,
+          });
+
+          // Convert to blob
+          const mimeType = getMimeType(settings.format);
+          const quality = settings.quality / 100;
+
+          // Pica's toBlob is better/faster usually but let's use standard for consistency with format support?
+          // Actually pica has .toBlob which helps.
+          const blob = await picaInstance.toBlob(toCanvas, mimeType, quality);
+          URL.revokeObjectURL(url);
+          resolve(blob);
+          return;
+        }
+
+        // Standard logic for NO resize (just compression/conversion)
+        const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
 
