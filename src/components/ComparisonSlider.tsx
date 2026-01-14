@@ -19,10 +19,24 @@ export function ComparisonSlider({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [localPosition, setLocalPosition] = useState(position);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
     setLocalPosition(position);
   }, [position]);
+
+  // Track container width for proper image sizing
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
 
   const updatePosition = useCallback(
     (clientX: number) => {
@@ -74,7 +88,7 @@ export function ComparisonSlider({
         onMouseDown={() => setIsResizing(true)}
         onTouchStart={() => setIsResizing(true)}
       >
-        {/* Background: Compressed Image */}
+        {/* Background: Compressed Image (Full width, always visible on right side) */}
         <div className="absolute inset-0 bg-black/20">
           {compressedUrl ? (
             <img
@@ -92,20 +106,15 @@ export function ComparisonSlider({
           )}
         </div>
 
-        {/* Foreground: Original Image (Clipped) */}
+        {/* Foreground: Original Image (Clipped by slider position) */}
         <div
           className="absolute inset-0 overflow-hidden"
-          style={{ width: `${localPosition}%` }}
+          style={{ clipPath: `inset(0 ${100 - localPosition}% 0 0)` }}
         >
           <img
             src={originalUrl}
             alt="Original"
-            className="absolute top-0 left-0 h-full object-contain pointer-events-none"
-            style={{
-              width: containerRef.current
-                ? `${containerRef.current.offsetWidth}px`
-                : "100%",
-            }}
+            className="w-full h-full object-contain pointer-events-none"
             draggable={false}
           />
         </div>

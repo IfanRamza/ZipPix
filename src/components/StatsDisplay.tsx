@@ -16,6 +16,7 @@ interface StatsDisplayProps {
   originalDimensions: { width: number; height: number };
   compressedDimensions?: { width: number; height: number };
   isCompressing?: boolean;
+  stripMetadata?: boolean;
 }
 
 export function StatsDisplay({
@@ -24,6 +25,7 @@ export function StatsDisplay({
   originalDimensions,
   compressedDimensions,
   isCompressing = false,
+  stripMetadata = true,
 }: StatsDisplayProps) {
   const reduction = calculateReduction(originalSize, compressedSize);
   const isReduction = reduction > 0;
@@ -92,22 +94,24 @@ export function StatsDisplay({
           </Badge>
         </div>
 
-        {/* Privacy Indicator */}
-        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground bg-cyan-500/5 p-2 rounded-sm border border-cyan-500/10">
-          <Shield className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Metadata removed & privacy protected</span>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <Info className="w-3 h-3 hover:text-foreground transition-colors" />
-              </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-xs text-xs">
-                All sensitive metadata (GPS, EXIF, Creator info) has been
-                automatically stripped.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+        {/* Privacy Indicator - Only show when stripMetadata is enabled */}
+        {stripMetadata && (
+          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground bg-cyan-500/5 p-2 rounded-sm border border-cyan-500/10">
+            <Shield className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Metadata removed & privacy protected</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-3 h-3 hover:text-foreground transition-colors" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs text-xs">
+                  All sensitive metadata (GPS, EXIF, Creator info) has been
+                  automatically stripped.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
