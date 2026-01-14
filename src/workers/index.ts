@@ -1,2 +1,4 @@
-// Workers will be added here
-export {};
+export type {
+  CompressionRequest,
+  CompressionResponse,
+} from "./compression.worker";
