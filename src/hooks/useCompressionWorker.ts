@@ -1,5 +1,5 @@
 import { useImageStore } from "@/store/imageStore";
-import type { CompressionSettings } from "@/types";
+import type { CompressionSettings, EditState } from "@/types";
 import { useCallback, useEffect, useRef } from "react";
 
 interface CompressionResponse {
@@ -11,7 +11,7 @@ interface CompressionResponse {
 }
 
 /**
- * Hook for using compression worker
+ * Hook for using compression worker with non-destructive edit support
  */
 export function useCompressionWorker() {
   const workerRef = useRef<Worker | null>(null);
@@ -53,9 +53,13 @@ export function useCompressionWorker() {
     };
   }, [setCompressedImage, setError]);
 
-  // Compress function
+  // Compress function with edit state support
   const compress = useCallback(
-    async (file: File, settings: CompressionSettings) => {
+    async (
+      file: File,
+      settings: CompressionSettings,
+      editState?: EditState
+    ) => {
       if (!workerRef.current) {
         setError("Worker not initialized");
         return;
@@ -73,6 +77,7 @@ export function useCompressionWorker() {
           fileName: file.name,
           fileType: file.type,
           settings,
+          editState, // Pass edit state to worker
         });
       } catch (error) {
         setError(

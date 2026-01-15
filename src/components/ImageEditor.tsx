@@ -3,15 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import {
-  applyTransformations,
-  canvasToBlob,
-  DEFAULT_EDITOR_STATE,
-  type EditorState,
-  loadImage,
-} from "@/lib/imageEditor";
-import { getMimeType } from "@/lib/imageProcessor";
-import type { SupportedFormat } from "@/types";
+import { useImageStore } from "@/store/imageStore";
+import { DEFAULT_EDIT_STATE, type EditState } from "@/types";
 import {
   Check,
   Contrast,
@@ -25,7 +18,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactCrop, {
   centerCrop,
   type Crop as CropType,
@@ -35,10 +28,7 @@ import "react-image-crop/dist/ReactCrop.css";
 
 interface ImageEditorProps {
   imageUrl: string;
-  format: SupportedFormat;
-  quality: number;
-  onApply: (editedBlob: Blob) => void;
-  onCancel: () => void;
+  onClose: () => void;
 }
 
 // Aspect ratio presets
@@ -51,17 +41,146 @@ const ASPECT_PRESETS = [
   { label: "4:3", value: 4 / 3, icon: "🖼️" },
 ];
 
-export function ImageEditor({
-  imageUrl,
-  format,
-  quality,
-  onApply,
-  onCancel,
-}: ImageEditorProps) {
-  const [state, setState] = useState<EditorState>(DEFAULT_EDITOR_STATE);
-  const [isProcessing, setIsProcessing] = useState(false);
+// Generate preview URL from canvas with all edits applied
+async function generatePreview(
+  imageUrl: string,
+  editState: EditState
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const {
+        crop,
+        rotation,
+        flipHorizontal,
+        flipVertical,
+        brightness,
+        contrast,
+        saturation,
+      } = editState;
 
-  // Crop state
+      // Determine source dimensions (after crop)
+      const srcX = crop?.x ?? 0;
+      const srcY = crop?.y ?? 0;
+      const srcW = crop?.width ?? img.naturalWidth;
+      const srcH = crop?.height ?? img.naturalHeight;
+
+      // Determine if rotated 90 or 270 (dimensions swap)
+      const isRotatedSideways = rotation === 90 || rotation === 270;
+      const finalWidth = isRotatedSideways ? srcH : srcW;
+      const finalHeight = isRotatedSideways ? srcW : srcH;
+
+      // Create canvas
+      const canvas = document.createElement("canvas");
+      canvas.width = finalWidth;
+      canvas.height = finalHeight;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"));
+        return;
+      }
+
+      // Apply transformations
+      ctx.save();
+      ctx.translate(finalWidth / 2, finalHeight / 2);
+
+      // Apply rotation
+      if (rotation !== 0) {
+        ctx.rotate((rotation * Math.PI) / 180);
+      }
+
+      // Apply flips
+      const scaleX = flipHorizontal ? -1 : 1;
+      const scaleY = flipVertical ? -1 : 1;
+      ctx.scale(scaleX, scaleY);
+
+      // Draw the cropped portion centered
+      ctx.drawImage(
+        img,
+        srcX,
+        srcY,
+        srcW,
+        srcH,
+        -srcW / 2,
+        -srcH / 2,
+        srcW,
+        srcH
+      );
+
+      ctx.restore();
+
+      // Apply color filters if any
+      if (brightness !== 0 || contrast !== 0 || saturation !== 0) {
+        const imageData = ctx.getImageData(0, 0, finalWidth, finalHeight);
+        const data = imageData.data;
+
+        const brightnessFactor = brightness / 100;
+        const contrastFactor = (contrast + 100) / 100;
+        const saturationFactor = (saturation + 100) / 100;
+
+        for (let i = 0; i < data.length; i += 4) {
+          let r = data[i];
+          let g = data[i + 1];
+          let b = data[i + 2];
+
+          // Brightness
+          r += 255 * brightnessFactor;
+          g += 255 * brightnessFactor;
+          b += 255 * brightnessFactor;
+
+          // Contrast
+          r = (r - 128) * contrastFactor + 128;
+          g = (g - 128) * contrastFactor + 128;
+          b = (b - 128) * contrastFactor + 128;
+
+          // Saturation
+          const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
+          r = gray + saturationFactor * (r - gray);
+          g = gray + saturationFactor * (g - gray);
+          b = gray + saturationFactor * (b - gray);
+
+          // Clamp
+          data[i] = Math.max(0, Math.min(255, r));
+          data[i + 1] = Math.max(0, Math.min(255, g));
+          data[i + 2] = Math.max(0, Math.min(255, b));
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = imageUrl;
+  });
+}
+
+function hasAnyEdits(editState: EditState): boolean {
+  return !!(
+    editState.crop ||
+    editState.rotation !== 0 ||
+    editState.flipHorizontal ||
+    editState.flipVertical ||
+    editState.brightness !== 0 ||
+    editState.contrast !== 0 ||
+    editState.saturation !== 0
+  );
+}
+
+export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
+  // Get edit state from store
+  const { editState, updateEditState } = useImageStore();
+
+  // Local state for UI (synced to store on apply)
+  const [localState, setLocalState] = useState<EditState>(editState);
+
+  // Preview URL (generated from canvas for accurate crop preview)
+  const [previewUrl, setPreviewUrl] = useState<string>(imageUrl);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+
+  // Crop mode state
   const [isCropMode, setIsCropMode] = useState(false);
   const [crop, setCrop] = useState<CropType>();
   const [completedCrop, setCompletedCrop] = useState<CropType>();
@@ -76,26 +195,33 @@ export function ImageEditor({
   const [customWidth, setCustomWidth] = useState("");
   const [customHeight, setCustomHeight] = useState("");
 
-  // Local filter values for debouncing
-  const [localBrightness, setLocalBrightness] = useState(0);
-  const [localContrast, setLocalContrast] = useState(0);
-  const [localSaturation, setLocalSaturation] = useState(0);
-
-  // Debounced filter update
+  // Sync local state from store when opening
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setState((prev) => ({
-        ...prev,
-        brightness: localBrightness,
-        contrast: localContrast,
-        saturation: localSaturation,
-      }));
-    }, 150);
+    setLocalState(editState);
+  }, []);
+
+  // Generate preview whenever localState changes (debounced)
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (hasAnyEdits(localState)) {
+        setIsGeneratingPreview(true);
+        try {
+          const url = await generatePreview(imageUrl, localState);
+          setPreviewUrl(url);
+        } catch (error) {
+          console.error("Failed to generate preview:", error);
+        } finally {
+          setIsGeneratingPreview(false);
+        }
+      } else {
+        setPreviewUrl(imageUrl);
+      }
+    }, 100);
     return () => clearTimeout(timer);
-  }, [localBrightness, localContrast, localSaturation]);
+  }, [localState, imageUrl]);
 
   const handleRotate = (direction: "cw" | "ccw") => {
-    setState((prev) => {
+    setLocalState((prev) => {
       const rotations: (0 | 90 | 180 | 270)[] = [0, 90, 180, 270];
       const currentIndex = rotations.indexOf(prev.rotation);
       const newIndex =
@@ -107,7 +233,7 @@ export function ImageEditor({
   };
 
   const handleFlip = (axis: "horizontal" | "vertical") => {
-    setState((prev) => ({
+    setLocalState((prev) => ({
       ...prev,
       flipHorizontal:
         axis === "horizontal" ? !prev.flipHorizontal : prev.flipHorizontal,
@@ -116,14 +242,13 @@ export function ImageEditor({
     }));
   };
 
-  const handleReset = () => {
-    setState(DEFAULT_EDITOR_STATE);
-    setLocalBrightness(0);
-    setLocalContrast(0);
-    setLocalSaturation(0);
+  const handleLocalReset = () => {
+    setLocalState(DEFAULT_EDIT_STATE);
+    setPreviewUrl(imageUrl);
     setCrop(undefined);
     setCompletedCrop(undefined);
-    setIsCropMode(false);
+    setCustomWidth("");
+    setCustomHeight("");
   };
 
   // Initialize crop when entering crop mode
@@ -138,19 +263,18 @@ export function ImageEditor({
       );
       setCrop(newCrop);
     } else {
-      // Default freeform crop
       setCrop({ unit: "%", x: 10, y: 10, width: 80, height: 80 });
     }
   };
 
-  // Apply crop to state
+  // Apply crop to local state
   const handleApplyCrop = () => {
     if (completedCrop && imgRef.current) {
       const img = imgRef.current;
       const scaleX = img.naturalWidth / img.width;
       const scaleY = img.naturalHeight / img.height;
 
-      setState((prev) => ({
+      setLocalState((prev) => ({
         ...prev,
         crop: {
           x: Math.round(completedCrop.x * scaleX),
@@ -178,54 +302,16 @@ export function ImageEditor({
     }
   };
 
-  const handleApply = async () => {
-    setIsProcessing(true);
-    try {
-      const img = await loadImage(imageUrl);
-      const canvas = applyTransformations(img, state);
-      const blob = await canvasToBlob(
-        canvas,
-        getMimeType(format),
-        quality / 100
-      );
-      onApply(blob);
-    } catch (error) {
-      console.error("Failed to apply edits:", error);
-    } finally {
-      setIsProcessing(false);
-    }
+  // Apply edits to store (non-destructive - just saves state)
+  const handleApply = () => {
+    updateEditState(localState);
+    onClose();
   };
 
-  // Generate preview with transformations (non-crop)
-  const getPreviewStyle = useCallback(() => {
-    const transforms: string[] = [];
-
-    if (state.rotation !== 0) {
-      transforms.push(`rotate(${state.rotation}deg)`);
-    }
-    if (state.flipHorizontal) {
-      transforms.push("scaleX(-1)");
-    }
-    if (state.flipVertical) {
-      transforms.push("scaleY(-1)");
-    }
-
-    const filters: string[] = [];
-    if (state.brightness !== 0) {
-      filters.push(`brightness(${1 + state.brightness / 100})`);
-    }
-    if (state.contrast !== 0) {
-      filters.push(`contrast(${1 + state.contrast / 100})`);
-    }
-    if (state.saturation !== 0) {
-      filters.push(`saturate(${1 + state.saturation / 100})`);
-    }
-
-    return {
-      transform: transforms.length > 0 ? transforms.join(" ") : undefined,
-      filter: filters.length > 0 ? filters.join(" ") : undefined,
-    };
-  }, [state]);
+  // Cancel without saving
+  const handleCancel = () => {
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14] flex flex-col">
@@ -233,6 +319,11 @@ export function ImageEditor({
       <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/40 backdrop-blur-xl">
         <h2 className="text-lg font-semibold">
           {isCropMode ? "Crop Image" : "Edit Image"}
+          {isGeneratingPreview && (
+            <span className="ml-2 text-sm text-muted-foreground">
+              (updating...)
+            </span>
+          )}
         </h2>
         <div className="flex gap-2">
           {isCropMode ? (
@@ -260,7 +351,7 @@ export function ImageEditor({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleReset}
+                onClick={handleLocalReset}
                 className="cursor-pointer"
               >
                 <Undo2 className="w-4 h-4 mr-1" />
@@ -269,7 +360,7 @@ export function ImageEditor({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onCancel}
+                onClick={handleCancel}
                 className="cursor-pointer"
               >
                 <X className="w-4 h-4 mr-1" />
@@ -278,7 +369,6 @@ export function ImageEditor({
               <Button
                 size="sm"
                 onClick={handleApply}
-                disabled={isProcessing}
                 className="bg-cyan-500 hover:bg-cyan-600 cursor-pointer"
               >
                 <Check className="w-4 h-4 mr-1" />
@@ -324,10 +414,18 @@ export function ImageEditor({
           ) : (
             <img
               ref={imgRef}
-              src={imageUrl}
+              src={previewUrl}
               alt="Preview"
               className="max-w-full max-h-full object-contain rounded shadow-2xl transition-all duration-200"
-              style={getPreviewStyle()}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                if (!hasAnyEdits(localState)) {
+                  setImageNaturalSize({
+                    width: img.naturalWidth,
+                    height: img.naturalHeight,
+                  });
+                }
+              }}
             />
           )}
         </div>
@@ -478,9 +576,10 @@ export function ImageEditor({
                     <Crop className="w-4 h-4 mr-2" />
                     Crop Image
                   </Button>
-                  {state.crop && (
+                  {localState.crop && (
                     <p className="text-xs text-green-400 text-center mt-2">
-                      ✓ Crop applied ({state.crop.width}x{state.crop.height})
+                      ✓ Crop: {localState.crop.width}×{localState.crop.height}{" "}
+                      px
                     </p>
                   )}
                 </CardContent>
@@ -514,7 +613,9 @@ export function ImageEditor({
 
                   <div className="flex gap-2">
                     <Button
-                      variant={state.flipHorizontal ? "default" : "outline"}
+                      variant={
+                        localState.flipHorizontal ? "default" : "outline"
+                      }
                       size="sm"
                       onClick={() => handleFlip("horizontal")}
                       className="flex-1 cursor-pointer"
@@ -523,7 +624,7 @@ export function ImageEditor({
                       Flip H
                     </Button>
                     <Button
-                      variant={state.flipVertical ? "default" : "outline"}
+                      variant={localState.flipVertical ? "default" : "outline"}
                       size="sm"
                       onClick={() => handleFlip("vertical")}
                       className="flex-1 cursor-pointer"
@@ -547,13 +648,15 @@ export function ImageEditor({
                         <Sun className="w-3 h-3" /> Brightness
                       </span>
                       <span className="font-mono text-muted-foreground">
-                        {localBrightness > 0 ? "+" : ""}
-                        {localBrightness}
+                        {localState.brightness > 0 ? "+" : ""}
+                        {localState.brightness}
                       </span>
                     </div>
                     <Slider
-                      value={[localBrightness]}
-                      onValueChange={([v]) => setLocalBrightness(v)}
+                      value={[localState.brightness]}
+                      onValueChange={([v]) =>
+                        setLocalState((prev) => ({ ...prev, brightness: v }))
+                      }
                       min={-100}
                       max={100}
                       step={1}
@@ -567,13 +670,15 @@ export function ImageEditor({
                         <Contrast className="w-3 h-3" /> Contrast
                       </span>
                       <span className="font-mono text-muted-foreground">
-                        {localContrast > 0 ? "+" : ""}
-                        {localContrast}
+                        {localState.contrast > 0 ? "+" : ""}
+                        {localState.contrast}
                       </span>
                     </div>
                     <Slider
-                      value={[localContrast]}
-                      onValueChange={([v]) => setLocalContrast(v)}
+                      value={[localState.contrast]}
+                      onValueChange={([v]) =>
+                        setLocalState((prev) => ({ ...prev, contrast: v }))
+                      }
                       min={-100}
                       max={100}
                       step={1}
@@ -587,13 +692,15 @@ export function ImageEditor({
                         <Palette className="w-3 h-3" /> Saturation
                       </span>
                       <span className="font-mono text-muted-foreground">
-                        {localSaturation > 0 ? "+" : ""}
-                        {localSaturation}
+                        {localState.saturation > 0 ? "+" : ""}
+                        {localState.saturation}
                       </span>
                     </div>
                     <Slider
-                      value={[localSaturation]}
-                      onValueChange={([v]) => setLocalSaturation(v)}
+                      value={[localState.saturation]}
+                      onValueChange={([v]) =>
+                        setLocalState((prev) => ({ ...prev, saturation: v }))
+                      }
                       min={-100}
                       max={100}
                       step={1}
@@ -602,12 +709,14 @@ export function ImageEditor({
                 </CardContent>
               </Card>
 
-              {/* Info */}
+              {/* Status Info */}
               <p className="text-xs text-muted-foreground text-center">
-                Rotation: {state.rotation}° | Flip:{" "}
-                {state.flipHorizontal ? "H" : ""}
-                {state.flipVertical ? "V" : ""}
-                {!state.flipHorizontal && !state.flipVertical ? "None" : ""}
+                Rotation: {localState.rotation}° | Flip:{" "}
+                {localState.flipHorizontal ? "H" : ""}
+                {localState.flipVertical ? "V" : ""}
+                {!localState.flipHorizontal && !localState.flipVertical
+                  ? "None"
+                  : ""}
               </p>
             </>
           )}
