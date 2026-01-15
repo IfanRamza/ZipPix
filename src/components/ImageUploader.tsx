@@ -172,7 +172,7 @@ export function ImageUploader({
               fileInputRef.current?.click();
             }}
             disabled={isVerifying}
-            className="rounded-sm bg-linear-to-r from-cyan-500 to-blue-500 hover:opacity-90 shadow-lg shadow-cyan-500/25 min-w-[200px]"
+            className="rounded-sm bg-linear-to-r from-cyan-500 to-blue-500 hover:opacity-90 shadow-lg shadow-cyan-500/25 min-w-[200px] cursor-pointer"
           >
             {isVerifying ? (
               <>
