@@ -17,7 +17,7 @@ export function ActionButtons({
       size="lg"
       onClick={onDownload}
       disabled={isProcessing || !canDownload}
-      className="w-full rounded-sm cursor-pointer bg-gradient-to-r from-cyan-500 to-blue-500 hover:opacity-90 shadow-lg shadow-cyan-500/25"
+      className="w-full rounded-sm cursor-pointer bg-linear-to-r from-cyan-500 to-blue-500 hover:opacity-90 shadow-lg shadow-cyan-500/25"
     >
       {isProcessing ? (
         <>

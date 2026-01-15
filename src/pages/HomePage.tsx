@@ -94,7 +94,7 @@ export function HomePage() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14]">
+    <div className="min-h-screen flex flex-col bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14]">
       <Navbar onUploadClick={handleNavbarUploadClick} />
 
       {/* Hidden file input for navbar upload button */}
@@ -123,7 +123,7 @@ export function HomePage() {
           <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
             <div className="w-full max-w-2xl space-y-8">
               <div className="text-center space-y-4">
-                <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+                <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-linear-to-r from-white to-white/60 bg-clip-text text-transparent">
                   Compress images.
                   <br />
                   Protect privacy.

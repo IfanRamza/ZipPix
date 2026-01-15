@@ -137,7 +137,7 @@ export function ImageEditor({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/40 backdrop-blur-xl">
         <h2 className="text-lg font-semibold">Edit Image</h2>
