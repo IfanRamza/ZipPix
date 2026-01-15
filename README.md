@@ -1,73 +1,112 @@
-# React + TypeScript + Vite
+# ZipPix - Local Image Compression PWA
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ZipPix is a modern, privacy-focused image compression tool built with React, TypeScript, and Vite. It runs entirely in your browser using WebAssembly and Web Workers, ensuring that your images never leave your device. Inspired by Squoosh, it offers a premium, glassmorphic UI with real-time comparison.
 
-Currently, two official plugins are available:
+## ✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Privacy First**: 100% client-side processing. No server uploads.
+- **Modern Formats**: Support for WebP, AVIF, PNG, and JPEG.
+- **High-Quality Resizing**: Lanczos3 interpolation (via `pica`) for sharp upscaling and downscaling.
+- **Smart Presets**: Quick options for Web, Print, Archive, and Max Compression.
+- **Live Comparison**: Interactive split-slider to compare original vs. compressed images.
+- **Metadata Management**: Automatically strips EXIF/IPTC/XMP metadata for privacy.
+- **PWA Support**: Installable on desktop and mobile, works offline.
+- **Fast & Responsive**: Built with Vite and Tailwind CSS v4, optimized for performance.
 
-## React Compiler
+## 🛠️ Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Framework**: React 19 + TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS v4
+- **UI Components**: Shadcn UI (Radix Primitives)
+- **State Management**: Zustand
+- **Image Processing**: Canvas API + Pica + Web Workers
+- **Icons**: Lucide React
+- **Routing**: React Router DOM (HashRouter)
 
-## Expanding the ESLint configuration
+## 🚀 Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Node.js 19+
+- Bun (recommended) or npm/pnpm
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Installation
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1.  **Clone the repository**
+
+    ```bash
+    git clone https://github.com/yourusername/zippix.git
+    cd zippix
+    ```
+
+2.  **Install dependencies**
+
+    ```bash
+    bun install
+    # or
+    npm install
+    ```
+
+3.  **Start Development Server**
+
+    ```bash
+    bun dev
+    # or
+    npm run dev
+    ```
+
+4.  **Open in Browser**
+    Navigate to `http://localhost:5173`
+
+## 🏗️ Building for Production
+
+To create a production-ready build:
+
+```bash
+bun run build
+# or
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The output will be in the `dist/` directory. You can preview it locally:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+bun run preview
+# or
+npm run preview
 ```
+
+## 🧪 Running Tests
+
+ZipPix includes a comprehensive test suite (Unit, Integration, E2E).
+
+```bash
+# Unit Tests (Bun Test)
+bun test
+
+# E2E Tests (Playwright)
+npx playwright test
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please fork the repository and submit a Pull Request.
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+## 🔒 Privacy Policy
+
+ZipPix does not collect, store, or transmit any image data. All processing is performed locally on your device within your browser's sandbox.
+
+---
+
+**Built with ❤️ using React & Bun.**

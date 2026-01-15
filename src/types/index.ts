@@ -1,3 +1,5 @@
+import type { ParsedMetadata } from "@/lib/metadataParser";
+
 export type SupportedFormat = "jpeg" | "png" | "webp" | "avif";
 export type ChromaSubsampling = "4:4:4" | "4:2:2" | "4:2:0";
 
@@ -24,7 +26,7 @@ export interface ImageFileState {
   previewUrl: string;
   size: number;
   dimensions: ImageDimensions;
-  metadata?: Record<string, unknown>;
+  metadata?: ParsedMetadata;
 }
 
 export interface ProcessingStatus {

@@ -4,7 +4,7 @@ import { ControlPanel } from "@/components/ControlPanel";
 import { FilenameEditor } from "@/components/FilenameEditor";
 import { Footer } from "@/components/Footer";
 import { ImageUploader } from "@/components/ImageUploader";
-import { PageLoading } from "@/components/LoadingSpinner";
+import { MetadataViewer } from "@/components/MetadataViewer";
 import { Navbar } from "@/components/Navbar";
 import { StatsDisplay } from "@/components/StatsDisplay";
 import { useCompressionWorker } from "@/hooks/useCompressionWorker";
@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 import { Route, Routes } from "react-router-dom";
+import { PageLoading } from "./components/LoadingSpinner";
 
 // Lazy load page components
 const PrivacyPolicy = lazy(() =>
@@ -151,6 +152,10 @@ function HomePage() {
                 compressedUrl={compressedUrl}
                 position={sliderPosition}
                 onPositionChange={setSliderPosition}
+              />
+              <MetadataViewer
+                metadata={originalImage.metadata ?? null}
+                willBeStripped={settings.stripMetadata}
               />
             </div>
 

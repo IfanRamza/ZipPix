@@ -1,4 +1,5 @@
 import { getImageDimensions } from "@/lib/imageProcessor";
+import { parseMetadata } from "@/lib/metadataParser";
 import type { AppState, CompressionSettings } from "@/types";
 import { create } from "zustand";
 
@@ -40,8 +41,11 @@ export const useImageStore = create<AppState>((set, get) => ({
     // Create preview URL
     const previewUrl = URL.createObjectURL(file);
 
-    // Get dimensions
-    const dimensions = await getImageDimensions(file);
+    // Get dimensions and metadata in parallel
+    const [dimensions, metadata] = await Promise.all([
+      getImageDimensions(file),
+      parseMetadata(file),
+    ]);
 
     set({
       originalImage: {
@@ -49,6 +53,7 @@ export const useImageStore = create<AppState>((set, get) => ({
         previewUrl,
         size: file.size,
         dimensions,
+        metadata: metadata ?? undefined,
       },
       // Reset compressed state
       compressedImage: null,
