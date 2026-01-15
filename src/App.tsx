@@ -8,6 +8,11 @@ const HomePage = lazy(() =>
     default: module.HomePage,
   }))
 );
+const BatchPage = lazy(() =>
+  import("./pages/BatchPage").then((module) => ({
+    default: module.BatchPage,
+  }))
+);
 const PrivacyPolicy = lazy(() =>
   import("./pages/PrivacyPolicy").then((module) => ({
     default: module.PrivacyPolicy,
@@ -24,6 +29,7 @@ const App = () => {
     <Suspense fallback={<PageLoading />}>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/batch" element={<BatchPage />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
       </Routes>

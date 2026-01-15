@@ -20,6 +20,7 @@ interface ControlPanelProps {
   onSettingsChange: (settings: Partial<CompressionSettings>) => void;
   originalDimensions?: { width: number; height: number };
   onReset?: () => void;
+  batchMode?: boolean; // Hide custom dimensions in batch mode
 }
 
 export function ControlPanel({
@@ -27,6 +28,7 @@ export function ControlPanel({
   onSettingsChange,
   originalDimensions,
   onReset,
+  batchMode = false,
 }: ControlPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -280,34 +282,39 @@ export function ControlPanel({
               <SelectItem value="100">100% (Original)</SelectItem>
               <SelectItem value="200">200% (2x Upscale)</SelectItem>
               <SelectItem value="400">400% (4x Upscale)</SelectItem>
-              <SelectItem value="custom">Custom Dimensions</SelectItem>
+              {!batchMode && (
+                <SelectItem value="custom">Custom Dimensions</SelectItem>
+              )}
             </SelectContent>
           </Select>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <span className="text-[10px] text-muted-foreground uppercase">
-                Width
-              </span>
-              <Input
-                type="number"
-                value={widthInput}
-                onChange={(e) => handleResizeChange("width", e.target.value)}
-                className="h-9 font-mono text-sm"
-              />
+          {/* Custom dimension inputs - hidden in batch mode */}
+          {!batchMode && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase">
+                  Width
+                </span>
+                <Input
+                  type="number"
+                  value={widthInput}
+                  onChange={(e) => handleResizeChange("width", e.target.value)}
+                  className="h-9 font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] text-muted-foreground uppercase">
+                  Height
+                </span>
+                <Input
+                  type="number"
+                  value={heightInput}
+                  onChange={(e) => handleResizeChange("height", e.target.value)}
+                  className="h-9 font-mono text-sm"
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <span className="text-[10px] text-muted-foreground uppercase">
-                Height
-              </span>
-              <Input
-                type="number"
-                value={heightInput}
-                onChange={(e) => handleResizeChange("height", e.target.value)}
-                className="h-9 font-mono text-sm"
-              />
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Advanced Settings Toggle */}
