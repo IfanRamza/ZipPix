@@ -24,7 +24,7 @@ export function Navbar({ onUploadClick }: NavbarProps) {
           <Button
             size="sm"
             onClick={onUploadClick}
-            className="rounded-sm bg-linear-to-r from-cyan-500 to-blue-500 hover:opacity-90 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105"
+            className="rounded-sm bg-linear-to-r from-cyan-500 to-blue-500 hover:opacity-90 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 cursor-pointer"
           >
             <Upload className="w-4 h-4 mr-2" />
             Upload Image
