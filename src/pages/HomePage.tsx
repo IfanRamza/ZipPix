@@ -11,7 +11,7 @@ import { StatsDisplay } from "@/components/StatsDisplay";
 import { Button } from "@/components/ui/button";
 import { useCompressionWorker } from "@/hooks/useCompressionWorker";
 import { useImageStore } from "@/store/imageStore";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function HomePage() {
@@ -21,6 +21,7 @@ export function HomePage() {
 
   const {
     originalImage,
+    editState,
     compressedUrl,
     compressedSize,
     settings,
@@ -29,17 +30,19 @@ export function HomePage() {
     setOriginalImage,
     updateSettings,
     reset,
+    resetEdits,
+    hasEdits,
     setSliderPosition,
   } = useImageStore();
 
   const { compress } = useCompressionWorker();
 
-  // Trigger compression when image or settings change
+  // Trigger compression when image, settings, or editState changes
   useEffect(() => {
     if (originalImage) {
-      compress(originalImage.file, settings);
+      compress(originalImage.file, settings, editState);
     }
-  }, [originalImage, settings, compress]);
+  }, [originalImage, settings, editState, compress]);
 
   const handleUpload = useCallback(
     async (file: File) => {
@@ -79,19 +82,37 @@ export function HomePage() {
     }
   };
 
-  const handleEditApply = useCallback(
-    async (editedBlob: Blob) => {
-      // Create a new File from the edited blob
-      const editedFile = new File(
-        [editedBlob],
-        originalImage?.file.name || "edited.jpg",
-        { type: editedBlob.type }
+  // Get edit indicators for display
+  const getEditIndicators = () => {
+    const indicators: string[] = [];
+    if (editState.crop) {
+      indicators.push(
+        `Cropped: ${editState.crop.width}×${editState.crop.height}`
       );
-      await setOriginalImage(editedFile);
-      setIsEditing(false);
-    },
-    [originalImage, setOriginalImage]
-  );
+    }
+    if (editState.rotation !== 0) {
+      indicators.push(`Rotated: ${editState.rotation}°`);
+    }
+    if (editState.flipHorizontal || editState.flipVertical) {
+      const flip = [
+        editState.flipHorizontal && "H",
+        editState.flipVertical && "V",
+      ]
+        .filter(Boolean)
+        .join("+");
+      indicators.push(`Flipped: ${flip}`);
+    }
+    if (
+      editState.brightness !== 0 ||
+      editState.contrast !== 0 ||
+      editState.saturation !== 0
+    ) {
+      indicators.push("Filters applied");
+    }
+    return indicators;
+  };
+
+  const editIndicators = getEditIndicators();
 
   return (
     <div className="min-h-screen flex flex-col bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14]">
@@ -110,10 +131,7 @@ export function HomePage() {
       {isEditing && originalImage && (
         <ImageEditor
           imageUrl={originalImage.previewUrl}
-          format={settings.format}
-          quality={settings.quality}
-          onApply={handleEditApply}
-          onCancel={() => setIsEditing(false)}
+          onClose={() => setIsEditing(false)}
         />
       )}
 
@@ -157,7 +175,7 @@ export function HomePage() {
               />
 
               {/* Quick Actions Bar - Aligned Right */}
-              <div className="flex gap-3 justify-end">
+              <div className="flex gap-3 justify-end flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
@@ -167,6 +185,17 @@ export function HomePage() {
                   <Pencil className="w-4 h-4 mr-2" />
                   Edit Image
                 </Button>
+                {hasEdits() && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetEdits}
+                    className="rounded-sm cursor-pointer text-amber-400 border-amber-500/50 hover:bg-amber-500/10"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset to Original
+                  </Button>
+                )}
                 <Button
                   variant="destructive"
                   size="sm"
@@ -177,6 +206,20 @@ export function HomePage() {
                   Remove
                 </Button>
               </div>
+
+              {/* Edit Indicators */}
+              {editIndicators.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {editIndicators.map((indicator, i) => (
+                    <span
+                      key={i}
+                      className="text-xs px-2 py-1 bg-cyan-500/20 text-cyan-400 rounded-full"
+                    >
+                      {indicator}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <ComparisonSlider
                 originalUrl={originalImage.previewUrl}

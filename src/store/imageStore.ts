@@ -1,6 +1,11 @@
 import { getImageDimensions } from "@/lib/imageProcessor";
 import { parseMetadata } from "@/lib/metadataParser";
-import type { AppState, CompressionSettings } from "@/types";
+import {
+  type AppState,
+  type CompressionSettings,
+  DEFAULT_EDIT_STATE,
+  type EditState,
+} from "@/types";
 import { create } from "zustand";
 
 const DEFAULT_SETTINGS: CompressionSettings = {
@@ -16,6 +21,7 @@ const DEFAULT_SETTINGS: CompressionSettings = {
 export const useImageStore = create<AppState>((set, get) => ({
   // State
   originalImage: null,
+  editState: DEFAULT_EDIT_STATE,
   compressedImage: null,
   compressedSize: 0,
   compressedUrl: null,
@@ -55,7 +61,8 @@ export const useImageStore = create<AppState>((set, get) => ({
         dimensions,
         metadata: metadata ?? undefined,
       },
-      // Reset compressed state
+      // Reset everything when new image is uploaded
+      editState: DEFAULT_EDIT_STATE,
       compressedImage: null,
       compressedSize: 0,
       compressedUrl: null,
@@ -99,6 +106,7 @@ export const useImageStore = create<AppState>((set, get) => ({
 
     set({
       originalImage: null,
+      editState: DEFAULT_EDIT_STATE,
       compressedImage: null,
       compressedSize: 0,
       compressedUrl: null,
@@ -122,5 +130,29 @@ export const useImageStore = create<AppState>((set, get) => ({
     set((state) => ({
       status: { ...state.status, isCompressing },
     }));
+  },
+
+  // Edit actions - non-destructive
+  updateEditState: (edits: Partial<EditState>) => {
+    set((state) => ({
+      editState: { ...state.editState, ...edits },
+    }));
+  },
+
+  resetEdits: () => {
+    set({ editState: DEFAULT_EDIT_STATE });
+  },
+
+  hasEdits: () => {
+    const { editState } = get();
+    return !!(
+      editState.crop ||
+      editState.rotation !== 0 ||
+      editState.flipHorizontal ||
+      editState.flipVertical ||
+      editState.brightness !== 0 ||
+      editState.contrast !== 0 ||
+      editState.saturation !== 0
+    );
   },
 }));

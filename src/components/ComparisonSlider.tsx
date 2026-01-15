@@ -1,5 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { useImageStore } from "@/store/imageStore";
+import type { EditState } from "@/types";
 import { ArrowLeftRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -8,6 +10,130 @@ interface ComparisonSliderProps {
   compressedUrl: string | null;
   position?: number;
   onPositionChange?: (position: number) => void;
+}
+
+// Generate preview URL from canvas with all edits applied
+async function generateEditedPreview(
+  imageUrl: string,
+  editState: EditState
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const {
+        crop,
+        rotation,
+        flipHorizontal,
+        flipVertical,
+        brightness,
+        contrast,
+        saturation,
+      } = editState;
+
+      // Determine source dimensions (after crop)
+      const srcX = crop?.x ?? 0;
+      const srcY = crop?.y ?? 0;
+      const srcW = crop?.width ?? img.naturalWidth;
+      const srcH = crop?.height ?? img.naturalHeight;
+
+      // Determine if rotated 90 or 270 (dimensions swap)
+      const isRotatedSideways = rotation === 90 || rotation === 270;
+      const finalWidth = isRotatedSideways ? srcH : srcW;
+      const finalHeight = isRotatedSideways ? srcW : srcH;
+
+      // Create canvas
+      const canvas = document.createElement("canvas");
+      canvas.width = finalWidth;
+      canvas.height = finalHeight;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"));
+        return;
+      }
+
+      // Apply transformations
+      ctx.save();
+      ctx.translate(finalWidth / 2, finalHeight / 2);
+
+      // Apply rotation
+      if (rotation !== 0) {
+        ctx.rotate((rotation * Math.PI) / 180);
+      }
+
+      // Apply flips
+      const scaleX = flipHorizontal ? -1 : 1;
+      const scaleY = flipVertical ? -1 : 1;
+      ctx.scale(scaleX, scaleY);
+
+      // Draw the cropped portion centered
+      ctx.drawImage(
+        img,
+        srcX,
+        srcY,
+        srcW,
+        srcH,
+        -srcW / 2,
+        -srcH / 2,
+        srcW,
+        srcH
+      );
+
+      ctx.restore();
+
+      // Apply color filters if any
+      if (brightness !== 0 || contrast !== 0 || saturation !== 0) {
+        const imageData = ctx.getImageData(0, 0, finalWidth, finalHeight);
+        const data = imageData.data;
+
+        const brightnessFactor = brightness / 100;
+        const contrastFactor = (contrast + 100) / 100;
+        const saturationFactor = (saturation + 100) / 100;
+
+        for (let i = 0; i < data.length; i += 4) {
+          let r = data[i];
+          let g = data[i + 1];
+          let b = data[i + 2];
+
+          r += 255 * brightnessFactor;
+          g += 255 * brightnessFactor;
+          b += 255 * brightnessFactor;
+
+          r = (r - 128) * contrastFactor + 128;
+          g = (g - 128) * contrastFactor + 128;
+          b = (b - 128) * contrastFactor + 128;
+
+          const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
+          r = gray + saturationFactor * (r - gray);
+          g = gray + saturationFactor * (g - gray);
+          b = gray + saturationFactor * (b - gray);
+
+          data[i] = Math.max(0, Math.min(255, r));
+          data[i + 1] = Math.max(0, Math.min(255, g));
+          data[i + 2] = Math.max(0, Math.min(255, b));
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = imageUrl;
+  });
+}
+
+function hasAnyEdits(editState: EditState): boolean {
+  return !!(
+    editState.crop ||
+    editState.rotation !== 0 ||
+    editState.flipHorizontal ||
+    editState.flipVertical ||
+    editState.brightness !== 0 ||
+    editState.contrast !== 0 ||
+    editState.saturation !== 0
+  );
 }
 
 export function ComparisonSlider({
@@ -21,9 +147,43 @@ export function ComparisonSlider({
   const [localPosition, setLocalPosition] = useState(position);
   const [containerWidth, setContainerWidth] = useState(0);
 
+  // Get editState from store to apply to original preview
+  const { editState } = useImageStore();
+  const [editedOriginalUrl, setEditedOriginalUrl] =
+    useState<string>(originalUrl);
+
   useEffect(() => {
     setLocalPosition(position);
   }, [position]);
+
+  // Generate edited preview when editState or originalUrl changes
+  useEffect(() => {
+    let cancelled = false;
+
+    const updatePreview = async () => {
+      if (hasAnyEdits(editState)) {
+        try {
+          const url = await generateEditedPreview(originalUrl, editState);
+          if (!cancelled) {
+            setEditedOriginalUrl(url);
+          }
+        } catch (error) {
+          console.error("Failed to generate edited preview:", error);
+          if (!cancelled) {
+            setEditedOriginalUrl(originalUrl);
+          }
+        }
+      } else {
+        setEditedOriginalUrl(originalUrl);
+      }
+    };
+
+    updatePreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editState, originalUrl]);
 
   // Track container width for proper image sizing
   useEffect(() => {
@@ -80,6 +240,9 @@ export function ComparisonSlider({
     };
   }, [isResizing, updatePosition]);
 
+  // Determine label based on whether edits are applied
+  const originalLabel = hasAnyEdits(editState) ? "Edited" : "Original";
+
   return (
     <Card className="relative overflow-hidden border-border/50 bg-background/40 backdrop-blur-xl rounded select-none group touch-none animate-in fade-in duration-300">
       <div
@@ -106,14 +269,14 @@ export function ComparisonSlider({
           )}
         </div>
 
-        {/* Foreground: Original Image (Clipped by slider position) */}
+        {/* Foreground: Original/Edited Image (Clipped by slider position) */}
         <div
           className="absolute inset-0 overflow-hidden"
           style={{ clipPath: `inset(0 ${100 - localPosition}% 0 0)` }}
         >
           <img
-            src={originalUrl}
-            alt="Original"
+            src={editedOriginalUrl}
+            alt={originalLabel}
             className="w-full h-full object-contain pointer-events-none"
             draggable={false}
           />
@@ -131,7 +294,7 @@ export function ComparisonSlider({
 
         {/* Labels */}
         <Badge className="absolute top-4 left-4 bg-background/80 backdrop-blur rounded-sm pointer-events-none shadow-sm z-20">
-          Original
+          {originalLabel}
         </Badge>
         <Badge className="absolute top-4 right-4 bg-background/80 backdrop-blur rounded-sm pointer-events-none shadow-sm z-20">
           Compressed
