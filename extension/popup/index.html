@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=350, height=500">
+  <title>ZipPix</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">🖼️</span>
+        <span class="logo-text">ZipPix</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Drop Zone -->
+      <div id="dropZone" class="drop-zone">
+        <div class="drop-zone-content">
+          <span class="drop-icon">📁</span>
+          <p class="drop-text">Drop image here</p>
+          <p class="drop-subtext">or click to browse</p>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" hidden>
+      </div>
+
+      <!-- Preview (hidden by default) -->
+      <div id="preview" class="preview hidden">
+        <img id="previewImage" alt="Preview">
+        <div class="preview-info">
+          <span id="originalSize">0 KB</span>
+          <span class="arrow">→</span>
+          <span id="estimatedSize" class="highlight">0 KB</span>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="settings">
+        <div class="setting-group">
+          <label for="format">Format</label>
+          <select id="format">
+            <option value="webp" selected>WebP</option>
+            <option value="jpeg">JPEG</option>
+            <option value="png">PNG</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <label for="quality">Quality: <span id="qualityValue">80</span>%</label>
+          <input type="range" id="quality" min="1" max="100" value="80">
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button id="compressBtn" class="btn btn-primary" disabled>
+          <span class="btn-icon">⚡</span>
+          Compress & Download
+        </button>
+        <button id="scanBtn" class="btn btn-secondary">
+          <span class="btn-icon">🔍</span>
+          Scan Page
+        </button>
+      </div>
+
+      <!-- Page Scanner Results (hidden by default) -->
+      <div id="scanResults" class="scan-results hidden">
+        <div class="scan-header">
+          <h3>Found <span id="imageCount">0</span> images</h3>
+          <button id="selectAllBtn" class="btn-link">Select All</button>
+        </div>
+        <div id="imageList" class="image-list"></div>
+        <button id="batchCompressBtn" class="btn btn-primary" disabled>
+          <span class="btn-icon">📦</span>
+          Compress Selected
+        </button>
+      </div>
+    </main>
+
+    <!-- Status Bar -->
+    <footer class="status">
+      <span id="status">Ready</span>
+    </footer>
+  </div>
+
+  <script src="../lib/pica.min.js"></script>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
