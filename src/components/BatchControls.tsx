@@ -11,8 +11,7 @@ interface BatchControlsProps {
 }
 
 export function BatchControls({ onStartProcessing, isProcessorBusy = false }: BatchControlsProps) {
-  const { isProcessing, isPaused, items, pauseProcessing, resumeProcessing, reset } =
-    useBatchStore();
+  const { isProcessing, isPaused, items, pauseProcessing, resumeProcessing } = useBatchStore();
   const { settings } = useImageStore();
   const stats = useBatchStats();
 
