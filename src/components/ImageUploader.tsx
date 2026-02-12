@@ -36,7 +36,7 @@ export function ImageUploader({
       // Validate type
       if (!validateFileType(file)) {
         setError(
-          "Unsupported file format. Please use JPEG, PNG, WebP, AVIF, or GIF."
+          "Unsupported file format. Please use JPEG, PNG, WebP, AVIF, or GIF.",
         );
         setIsVerifying(false);
         return;
@@ -49,20 +49,23 @@ export function ImageUploader({
 
         if (!isValidSignature) {
           setError(
-            "Security Alert: File content does not match its extension. Please allow valid image files only."
+            "Security Alert: File content does not match its extension. Please allow valid image files only.",
           );
           setIsVerifying(false);
           return;
         }
       } catch (e) {
-        // Fallback or ignore if validation fails technically (e.g. 0 byte file)
+        // Reject files that fail validation (e.g., 0 byte, corrupted)
         console.warn("Signature validation failed", e);
+        setError("File validation failed. The file may be corrupted or empty.");
+        setIsVerifying(false);
+        return;
       }
 
       // Validate size
       if (file.size > maxSize) {
         setError(
-          `File size exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit.`
+          `File size exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit.`,
         );
         setIsVerifying(false);
         return;
@@ -71,7 +74,7 @@ export function ImageUploader({
       setIsVerifying(false);
       onUpload(file);
     },
-    [maxSize, onUpload]
+    [maxSize, onUpload],
   );
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
@@ -114,7 +117,7 @@ export function ImageUploader({
             ? "border-cyan-500 bg-cyan-500/5 scale-[1.02]"
             : "border-border/50 hover:border-cyan-500/50",
           error && "border-red-500/50",
-          isVerifying && "cursor-wait opacity-80"
+          isVerifying && "cursor-wait opacity-80",
         )}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -136,7 +139,7 @@ export function ImageUploader({
               "w-20 h-20 rounded-full flex items-center justify-center mb-6 transition-colors",
               isDragging
                 ? "bg-cyan-500/20"
-                : "bg-linear-to-br from-cyan-500/10 to-blue-500/10"
+                : "bg-linear-to-br from-cyan-500/10 to-blue-500/10",
             )}
           >
             {isVerifying ? (
@@ -145,7 +148,7 @@ export function ImageUploader({
               <Upload
                 className={cn(
                   "w-10 h-10 transition-all",
-                  isDragging ? "text-cyan-400 scale-110" : "text-cyan-500/80"
+                  isDragging ? "text-cyan-400 scale-110" : "text-cyan-500/80",
                 )}
               />
             )}
@@ -155,8 +158,8 @@ export function ImageUploader({
             {isVerifying
               ? "Verifying file..."
               : isDragging
-              ? "Drop it!"
-              : "Drop your image here"}
+                ? "Drop it!"
+                : "Drop your image here"}
           </h3>
           <p className="text-muted-foreground text-center mb-8">
             {isVerifying

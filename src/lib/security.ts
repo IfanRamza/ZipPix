@@ -130,7 +130,8 @@ export function strictSanitizeFilename(filename: string): string {
 
   // 9. Prevent reserved filenames (Windows)
   if (/^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i.test(finalBase)) {
-    return `_${finalBase}`;
+    const safeName = `_${finalBase}`;
+    return ext ? `${safeName}.${ext}` : safeName;
   }
 
   return ext ? `${finalBase}.${ext}` : finalBase;

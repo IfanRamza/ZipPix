@@ -48,12 +48,8 @@ export function HomePage() {
     async (file: File) => {
       await setOriginalImage(file);
     },
-    [setOriginalImage]
+    [setOriginalImage],
   );
-
-  const handleNavbarUploadClick = () => {
-    fileInputRef.current?.click();
-  };
 
   const handleDownload = () => {
     if (!compressedUrl) return;
@@ -87,7 +83,7 @@ export function HomePage() {
     const indicators: string[] = [];
     if (editState.crop) {
       indicators.push(
-        `Cropped: ${editState.crop.width}×${editState.crop.height}`
+        `Cropped: ${editState.crop.width}×${editState.crop.height}`,
       );
     }
     if (editState.rotation !== 0) {
@@ -116,7 +112,7 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14]">
-      <Navbar onUploadClick={handleNavbarUploadClick} />
+      <Navbar />
 
       {/* Hidden file input for navbar upload button */}
       <input

@@ -1,13 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, Layers, Upload } from "lucide-react";
+import { Image as ImageIcon, Layers } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
-interface NavbarProps {
-  onUploadClick?: () => void;
-  showBatchLink?: boolean;
-}
-
-export function Navbar({ onUploadClick }: NavbarProps) {
+export function Navbar() {
   const location = useLocation();
   const isHome = location.pathname === "/";
   const isBatch = location.pathname === "/batch";
@@ -57,18 +52,6 @@ export function Navbar({ onUploadClick }: NavbarProps) {
               </Button>
             </Link>
           </div>
-
-          {/* Upload Button (only on home) */}
-          {isHome && onUploadClick && (
-            <Button
-              size="sm"
-              onClick={onUploadClick}
-              className="rounded-sm bg-linear-to-r from-cyan-500 to-blue-500 hover:opacity-90 shadow-lg shadow-cyan-500/20 transition-all hover:scale-105 cursor-pointer"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              Upload Image
-            </Button>
-          )}
         </div>
       </div>
     </header>

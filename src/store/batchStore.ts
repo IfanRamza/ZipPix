@@ -1,3 +1,4 @@
+import { strictSanitizeFilename } from "@/lib/security";
 import type { BatchItem, BatchState } from "@/types";
 import { create } from "zustand";
 
@@ -17,7 +18,7 @@ interface BatchStore extends BatchState {
   updateItemStatus: (
     id: string,
     status: BatchItem["status"],
-    data?: Partial<BatchItem>
+    data?: Partial<BatchItem>,
   ) => void;
   reset: () => void;
 }
@@ -41,14 +42,19 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
     const filesToAdd = files.slice(0, remaining);
     const rejected = files.length - filesToAdd.length;
 
-    const newItems: BatchItem[] = filesToAdd.map((file) => ({
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      file,
-      previewUrl: URL.createObjectURL(file),
-      outputFilename: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
-      status: "queued" as const,
-      progress: 0,
-    }));
+    const newItems: BatchItem[] = filesToAdd.map((file) => {
+      const lastDot = file.name.lastIndexOf(".");
+      const baseName = lastDot > 0 ? file.name.slice(0, lastDot) : file.name;
+      const sanitized = strictSanitizeFilename(baseName);
+      return {
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        outputFilename: sanitized,
+        status: "queued" as const,
+        progress: 0,
+      };
+    });
 
     set((state) => ({
       items: [...state.items, ...newItems],
@@ -74,7 +80,7 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
   updateItemFilename: (id: string, filename: string) => {
     set((state) => ({
       items: state.items.map((item) =>
-        item.id === id ? { ...item, outputFilename: filename } : item
+        item.id === id ? { ...item, outputFilename: filename } : item,
       ),
     }));
   },
@@ -83,7 +89,7 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
   updateItemDimensions: (id: string, width: number, height: number) => {
     set((state) => ({
       items: state.items.map((item) =>
-        item.id === id ? { ...item, width, height } : item
+        item.id === id ? { ...item, width, height } : item,
       ),
     }));
   },
@@ -129,11 +135,11 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
   updateItemStatus: (
     id: string,
     status: BatchItem["status"],
-    data?: Partial<BatchItem>
+    data?: Partial<BatchItem>,
   ) => {
     set((state) => ({
       items: state.items.map((item) =>
-        item.id === id ? { ...item, status, ...data } : item
+        item.id === id ? { ...item, status, ...data } : item,
       ),
     }));
   },

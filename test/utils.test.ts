@@ -24,12 +24,12 @@ describe("sanitizeFilename", () => {
   test("limits length", () => {
     const longName = "a".repeat(300) + ".jpg";
     const result = sanitizeFilename(longName);
-    expect(result.length).toBeLessThanOrEqual(110); // 100 base + extension
+    expect(result.length).toBeLessThanOrEqual(60); // 50 char base limit + .ext
   });
 
   test("handles empty string", () => {
     const result = sanitizeFilename("");
-    expect(result).toBe("unnamed");
+    expect(result).toBe("untitled");
   });
 });
 

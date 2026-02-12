@@ -7,6 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { validateFileSignature } from "@/lib/security";
+import { validateFileType } from "@/lib/utils";
 import { useBatchStats, useBatchStore } from "@/store/batchStore";
 import { AlertTriangle, ImagePlus, Upload, XCircle } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
@@ -26,39 +28,65 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
   const { canAddMore, remainingSlots, total, maxSize } = useBatchStats();
 
   const handleFiles = useCallback(
-    (files: FileList | null) => {
+    async (files: FileList | null) => {
       if (!files) return;
 
-      const validFiles = Array.from(files).filter((file) =>
-        file.type.startsWith("image/")
+      // Validate MIME type + magic bytes for each file
+      const fileArray = Array.from(files).filter((file) =>
+        validateFileType(file),
       );
 
-      if (validFiles.length === 0) return;
+      if (fileArray.length === 0) return;
+
+      // Verify magic bytes for security (prevents extension spoofing)
+      const verifiedFiles: File[] = [];
+      for (const file of fileArray) {
+        try {
+          const isValid = await validateFileSignature(file);
+          if (isValid) {
+            verifiedFiles.push(file);
+          }
+        } catch {
+          // Reject files that fail validation
+        }
+      }
+
+      const signatureRejected = fileArray.length - verifiedFiles.length;
+
+      if (verifiedFiles.length === 0) {
+        if (signatureRejected > 0) {
+          setRejectedCount(signatureRejected);
+          setShowRejectionWarning(true);
+          setTimeout(() => setShowRejectionWarning(false), 4000);
+        }
+        return;
+      }
 
       // If first upload and more than max, block entirely
-      if (total === 0 && validFiles.length > maxSize) {
-        setBlockedCount(validFiles.length);
+      if (total === 0 && verifiedFiles.length > maxSize) {
+        setBlockedCount(verifiedFiles.length);
         setShowBlockDialog(true);
         return;
       }
 
       // Check if trying to add more than allowed
       if (!canAddMore) {
-        setRejectedCount(validFiles.length);
+        setRejectedCount(verifiedFiles.length);
         setShowRejectionWarning(true);
         setTimeout(() => setShowRejectionWarning(false), 4000);
         return;
       }
 
-      const result = addItems(validFiles);
+      const result = addItems(verifiedFiles);
 
-      if (result.rejected > 0) {
-        setRejectedCount(result.rejected);
+      const totalRejected = result.rejected + signatureRejected;
+      if (totalRejected > 0) {
+        setRejectedCount(totalRejected);
         setShowRejectionWarning(true);
         setTimeout(() => setShowRejectionWarning(false), 4000);
       }
     },
-    [addItems, canAddMore, total, maxSize]
+    [addItems, canAddMore, total, maxSize],
   );
 
   const handleDrop = useCallback(
@@ -67,7 +95,7 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
       setIsDragging(false);
       handleFiles(e.dataTransfer.files);
     },
-    [handleFiles]
+    [handleFiles],
   );
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {

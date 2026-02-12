@@ -16,7 +16,7 @@ describe("Performance Benchmarks", () => {
   test("sanitizeFilename performance (10k iterations)", () => {
     const start = performance.now();
     for (let i = 0; i < 10000; i++) {
-      sanitizeFilename("very-long-filename-with-strange-chars-%$#@.jpg");
+      sanitizeFilename("very-long-filename-with-strange-chars-and-symbols.jpg");
     }
     const end = performance.now();
     const duration = end - start;

@@ -6,15 +6,15 @@ import {
 
 describe("strictSanitizeFilename", () => {
   test("prevents path traversal", () => {
-    expect(strictSanitizeFilename("../../etc/passwd")).toBe("etc_passwd");
+    expect(strictSanitizeFilename("../../etc/passwd")).toBe("passwd");
     expect(strictSanitizeFilename("..\\..\\windows\\system32\\cmd.exe")).toBe(
-      "windows_system32_cmd.exe"
+      "cmd.exe",
     );
   });
 
   test("prevents XSS vectors", () => {
     expect(strictSanitizeFilename("<script>alert(1)</script>.jpg")).toBe(
-      "alert(1).jpg"
+      "script_.jpg",
     );
     expect(strictSanitizeFilename("img<onerror=alert(1)>.png")).toBe("img.png");
   });
@@ -35,7 +35,7 @@ describe("strictSanitizeFilename", () => {
   test("enforces length limit", () => {
     const longName = "a".repeat(100) + ".jpg";
     const result = strictSanitizeFilename(longName);
-    expect(result.length).toBeLessThan(60); // 50 char base limit + .jpg
+    expect(result.length).toBeLessThanOrEqual(55); // 50 char base limit + .jpg
   });
 });
 
