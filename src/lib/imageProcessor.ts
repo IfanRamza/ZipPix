@@ -1,19 +1,16 @@
-import type { CompressionSettings, SupportedFormat } from "@/types";
+import type { CompressionSettings, SupportedFormat } from '@/types';
 
 /**
  * Compress an image using Canvas API
  * Note: @squoosh/lib requires Node.js environment with WASM
  * For browser, we use Canvas API as fallback
  */
-import pica from "pica";
+import pica from 'pica';
 
 /**
  * Compress an image using Canvas API or Pica for high quality resizing
  */
-export async function compressImage(
-  file: File,
-  settings: CompressionSettings
-): Promise<Blob> {
+export async function compressImage(file: File, settings: CompressionSettings): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -24,10 +21,7 @@ export async function compressImage(
         let width = settings.width || img.width;
         let height = settings.height || img.height;
 
-        if (
-          settings.maintainAspectRatio &&
-          (settings.width || settings.height)
-        ) {
+        if (settings.maintainAspectRatio && (settings.width || settings.height)) {
           const aspectRatio = img.width / img.height;
           if (settings.width && !settings.height) {
             height = Math.round(settings.width / aspectRatio);
@@ -50,14 +44,14 @@ export async function compressImage(
         // Use Pica for High Quality Resizing (Lanczos)
         if (needsResize) {
           const picaInstance = pica();
-          const fromCanvas = document.createElement("canvas");
+          const fromCanvas = document.createElement('canvas');
           fromCanvas.width = img.width;
           fromCanvas.height = img.height;
-          const ctx = fromCanvas.getContext("2d");
-          if (!ctx) throw new Error("Canvas context missing");
+          const ctx = fromCanvas.getContext('2d');
+          if (!ctx) throw new Error('Canvas context missing');
           ctx.drawImage(img, 0, 0);
 
-          const toCanvas = document.createElement("canvas");
+          const toCanvas = document.createElement('canvas');
           toCanvas.width = width;
           toCanvas.height = height;
 
@@ -82,13 +76,13 @@ export async function compressImage(
         }
 
         // Standard logic for NO resize (just compression/conversion)
-        const canvas = document.createElement("canvas");
+        const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
 
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext('2d');
         if (!ctx) {
-          reject(new Error("Canvas context not available"));
+          reject(new Error('Canvas context not available'));
           return;
         }
 
@@ -105,11 +99,11 @@ export async function compressImage(
             if (blob) {
               resolve(blob);
             } else {
-              reject(new Error("Failed to compress image"));
+              reject(new Error('Failed to compress image'));
             }
           },
           mimeType,
-          quality
+          quality,
         );
       } catch (error) {
         URL.revokeObjectURL(url);
@@ -119,7 +113,7 @@ export async function compressImage(
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error("Failed to load image"));
+      reject(new Error('Failed to load image'));
     };
 
     img.src = url;
@@ -129,9 +123,7 @@ export async function compressImage(
 /**
  * Get image dimensions from a file
  */
-export async function getImageDimensions(
-  file: File
-): Promise<{ width: number; height: number }> {
+export async function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -143,7 +135,7 @@ export async function getImageDimensions(
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error("Failed to load image"));
+      reject(new Error('Failed to load image'));
     };
 
     img.src = url;
@@ -155,10 +147,10 @@ export async function getImageDimensions(
  */
 export function getMimeType(format: SupportedFormat): string {
   const mimeTypes: Record<SupportedFormat, string> = {
-    jpeg: "image/jpeg",
-    png: "image/png",
-    webp: "image/webp",
-    avif: "image/avif",
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    avif: 'image/avif',
   };
   return mimeTypes[format];
 }
@@ -168,10 +160,10 @@ export function getMimeType(format: SupportedFormat): string {
  */
 export function getFileExtension(format: SupportedFormat): string {
   const extensions: Record<SupportedFormat, string> = {
-    jpeg: "jpg",
-    png: "png",
-    webp: "webp",
-    avif: "avif",
+    jpeg: 'jpg',
+    png: 'png',
+    webp: 'webp',
+    avif: 'avif',
   };
   return extensions[format];
 }

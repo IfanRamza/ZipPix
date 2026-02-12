@@ -1,4 +1,4 @@
-import exifr from "exifr";
+import exifr from 'exifr';
 
 export interface ParsedMetadata {
   camera?: {
@@ -30,9 +30,7 @@ export interface ParsedMetadata {
 /**
  * Parse EXIF/IPTC/XMP metadata from an image file
  */
-export async function parseMetadata(
-  file: File
-): Promise<ParsedMetadata | null> {
+export async function parseMetadata(file: File): Promise<ParsedMetadata | null> {
   try {
     const data = await exifr.parse(file, {
       // Include all metadata segments
@@ -54,9 +52,7 @@ export async function parseMetadata(
         lens: data.LensModel || data.Lens,
         iso: data.ISO,
         aperture: data.FNumber ? `f/${data.FNumber}` : undefined,
-        shutterSpeed: data.ExposureTime
-          ? `1/${Math.round(1 / data.ExposureTime)}s`
-          : undefined,
+        shutterSpeed: data.ExposureTime ? `1/${Math.round(1 / data.ExposureTime)}s` : undefined,
       },
       location:
         data.latitude || data.longitude
@@ -66,9 +62,7 @@ export async function parseMetadata(
               altitude: data.GPSAltitude,
             }
           : undefined,
-      dateTime:
-        data.DateTimeOriginal?.toISOString?.() ||
-        data.CreateDate?.toISOString?.(),
+      dateTime: data.DateTimeOriginal?.toISOString?.() || data.CreateDate?.toISOString?.(),
       software: {
         software: data.Software,
         copyright: data.Copyright,
@@ -91,7 +85,7 @@ export async function parseMetadata(
 
     return metadata;
   } catch (error) {
-    console.warn("Failed to parse metadata:", error);
+    console.warn('Failed to parse metadata:', error);
     return null;
   }
 }
@@ -99,9 +93,7 @@ export async function parseMetadata(
 /**
  * Check if metadata contains any significant data worth displaying
  */
-export function hasSignificantMetadata(
-  metadata: ParsedMetadata | null
-): boolean {
+export function hasSignificantMetadata(metadata: ParsedMetadata | null): boolean {
   if (!metadata) return false;
   return !!(
     metadata.camera?.make ||

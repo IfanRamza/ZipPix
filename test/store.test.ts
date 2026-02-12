@@ -1,13 +1,13 @@
-import { beforeEach, describe, expect, test } from "bun:test";
-import { useImageStore } from "../src/store/imageStore";
+import { beforeEach, describe, expect, test } from 'bun:test';
+import { useImageStore } from '../src/store/imageStore';
 
-describe("imageStore", () => {
+describe('imageStore', () => {
   beforeEach(() => {
     // Reset store before each test
     useImageStore.getState().reset();
   });
 
-  test("initial state is correct", () => {
+  test('initial state is correct', () => {
     const state = useImageStore.getState();
     expect(state.originalImage).toBe(null);
     expect(state.compressedImage).toBe(null);
@@ -17,27 +17,27 @@ describe("imageStore", () => {
     expect(state.status.isCompressing).toBe(false);
   });
 
-  test("default settings are correct", () => {
+  test('default settings are correct', () => {
     const { settings } = useImageStore.getState();
-    expect(settings.format).toBe("webp");
+    expect(settings.format).toBe('webp');
     expect(settings.quality).toBe(85);
     expect(settings.maintainAspectRatio).toBe(true);
     expect(settings.stripMetadata).toBe(true);
     expect(settings.effort).toBe(4);
     expect(settings.progressive).toBe(true);
-    expect(settings.chromaSubsampling).toBe("4:2:0");
+    expect(settings.chromaSubsampling).toBe('4:2:0');
   });
 
-  test("updateSettings merges settings", () => {
+  test('updateSettings merges settings', () => {
     const store = useImageStore.getState();
     store.updateSettings({ quality: 50 });
 
     const { settings } = useImageStore.getState();
     expect(settings.quality).toBe(50);
-    expect(settings.format).toBe("webp"); // unchanged
+    expect(settings.format).toBe('webp'); // unchanged
   });
 
-  test("setSliderPosition clamps value", () => {
+  test('setSliderPosition clamps value', () => {
     const store = useImageStore.getState();
 
     store.setSliderPosition(150);
@@ -50,16 +50,16 @@ describe("imageStore", () => {
     expect(useImageStore.getState().sliderPosition).toBe(75);
   });
 
-  test("setError updates status", () => {
+  test('setError updates status', () => {
     const store = useImageStore.getState();
-    store.setError("Test error");
+    store.setError('Test error');
 
     const { status } = useImageStore.getState();
-    expect(status.error).toBe("Test error");
+    expect(status.error).toBe('Test error');
     expect(status.isCompressing).toBe(false);
   });
 
-  test("setProcessing updates status", () => {
+  test('setProcessing updates status', () => {
     const store = useImageStore.getState();
     store.setProcessing(true);
 
@@ -69,11 +69,11 @@ describe("imageStore", () => {
     expect(useImageStore.getState().status.isCompressing).toBe(false);
   });
 
-  test("reset restores initial state", () => {
+  test('reset restores initial state', () => {
     const store = useImageStore.getState();
 
     // Modify state
-    store.updateSettings({ quality: 10, format: "png" });
+    store.updateSettings({ quality: 10, format: 'png' });
     store.setSliderPosition(25);
 
     // Reset
@@ -81,7 +81,7 @@ describe("imageStore", () => {
 
     const state = useImageStore.getState();
     expect(state.settings.quality).toBe(85);
-    expect(state.settings.format).toBe("webp");
+    expect(state.settings.format).toBe('webp');
     expect(state.sliderPosition).toBe(50);
   });
 });

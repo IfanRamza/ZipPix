@@ -1,4 +1,1 @@
-export type {
-  CompressionRequest,
-  CompressionResponse,
-} from "./compression.worker";
+export type { CompressionRequest, CompressionResponse } from './compression.worker';

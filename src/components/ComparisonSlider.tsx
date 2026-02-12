@@ -1,9 +1,9 @@
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { useImageStore } from "@/store/imageStore";
-import type { EditState } from "@/types";
-import { ArrowLeftRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { useImageStore } from '@/store/imageStore';
+import type { EditState } from '@/types';
+import { ArrowLeftRight } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface ComparisonSliderProps {
   originalUrl: string;
@@ -13,23 +13,13 @@ interface ComparisonSliderProps {
 }
 
 // Generate preview URL from canvas with all edits applied
-async function generateEditedPreview(
-  imageUrl: string,
-  editState: EditState
-): Promise<string> {
+async function generateEditedPreview(imageUrl: string, editState: EditState): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const {
-        crop,
-        rotation,
-        flipHorizontal,
-        flipVertical,
-        brightness,
-        contrast,
-        saturation,
-      } = editState;
+      const { crop, rotation, flipHorizontal, flipVertical, brightness, contrast, saturation } =
+        editState;
 
       // Determine source dimensions (after crop)
       const srcX = crop?.x ?? 0;
@@ -43,13 +33,13 @@ async function generateEditedPreview(
       const finalHeight = isRotatedSideways ? srcW : srcH;
 
       // Create canvas
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.width = finalWidth;
       canvas.height = finalHeight;
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
 
       if (!ctx) {
-        reject(new Error("Failed to get canvas context"));
+        reject(new Error('Failed to get canvas context'));
         return;
       }
 
@@ -68,17 +58,7 @@ async function generateEditedPreview(
       ctx.scale(scaleX, scaleY);
 
       // Draw the cropped portion centered
-      ctx.drawImage(
-        img,
-        srcX,
-        srcY,
-        srcW,
-        srcH,
-        -srcW / 2,
-        -srcH / 2,
-        srcW,
-        srcH
-      );
+      ctx.drawImage(img, srcX, srcY, srcW, srcH, -srcW / 2, -srcH / 2, srcW, srcH);
 
       ctx.restore();
 
@@ -117,9 +97,9 @@ async function generateEditedPreview(
         ctx.putImageData(imageData, 0, 0);
       }
 
-      resolve(canvas.toDataURL("image/jpeg", 0.9));
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
     };
-    img.onerror = () => reject(new Error("Failed to load image"));
+    img.onerror = () => reject(new Error('Failed to load image'));
     img.src = imageUrl;
   });
 }
@@ -145,16 +125,10 @@ export function ComparisonSlider({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [localPosition, setLocalPosition] = useState(position);
-  const [containerWidth, setContainerWidth] = useState(0);
 
   // Get editState from store to apply to original preview
   const { editState } = useImageStore();
-  const [editedOriginalUrl, setEditedOriginalUrl] =
-    useState<string>(originalUrl);
-
-  useEffect(() => {
-    setLocalPosition(position);
-  }, [position]);
+  const [editedOriginalUrl, setEditedOriginalUrl] = useState<string>(originalUrl);
 
   // Generate edited preview when editState or originalUrl changes
   useEffect(() => {
@@ -168,7 +142,7 @@ export function ComparisonSlider({
             setEditedOriginalUrl(url);
           }
         } catch (error) {
-          console.error("Failed to generate edited preview:", error);
+          console.error('Failed to generate edited preview:', error);
           if (!cancelled) {
             setEditedOriginalUrl(originalUrl);
           }
@@ -185,19 +159,6 @@ export function ComparisonSlider({
     };
   }, [editState, originalUrl]);
 
-  // Track container width for proper image sizing
-  useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth);
-      }
-    };
-
-    updateWidth();
-    window.addEventListener("resize", updateWidth);
-    return () => window.removeEventListener("resize", updateWidth);
-  }, []);
-
   const updatePosition = useCallback(
     (clientX: number) => {
       if (!containerRef.current) return;
@@ -207,7 +168,7 @@ export function ComparisonSlider({
       setLocalPosition(percentage);
       onPositionChange?.(percentage);
     },
-    [onPositionChange]
+    [onPositionChange],
   );
 
   useEffect(() => {
@@ -226,77 +187,75 @@ export function ComparisonSlider({
     const stopResizing = () => setIsResizing(false);
 
     if (isResizing) {
-      window.addEventListener("mousemove", handleMove);
-      window.addEventListener("mouseup", stopResizing);
-      window.addEventListener("touchmove", handleTouchMove);
-      window.addEventListener("touchend", stopResizing);
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', stopResizing);
+      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchend', stopResizing);
     }
 
     return () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", stopResizing);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", stopResizing);
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', stopResizing);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', stopResizing);
     };
   }, [isResizing, updatePosition]);
 
   // Determine label based on whether edits are applied
-  const originalLabel = hasAnyEdits(editState) ? "Edited" : "Original";
+  const originalLabel = hasAnyEdits(editState) ? 'Edited' : 'Original';
 
   return (
-    <Card className="relative overflow-hidden border-border/50 bg-background/40 backdrop-blur-xl rounded select-none group touch-none animate-in fade-in duration-300">
+    <Card className='border-border/50 bg-background/40 group animate-in fade-in relative touch-none overflow-hidden rounded backdrop-blur-xl duration-300 select-none'>
       <div
         ref={containerRef}
-        className="relative w-full aspect-video cursor-ew-resize"
+        className='relative aspect-video w-full cursor-ew-resize'
         onMouseDown={() => setIsResizing(true)}
         onTouchStart={() => setIsResizing(true)}
       >
         {/* Background: Compressed Image (Full width, always visible on right side) */}
-        <div className="absolute inset-0 bg-black/20">
+        <div className='absolute inset-0 bg-black/20'>
           {compressedUrl ? (
             <img
               src={compressedUrl}
-              alt="Compressed"
-              className="w-full h-full object-contain pointer-events-none"
+              alt='Compressed'
+              className='pointer-events-none h-full w-full object-contain'
               draggable={false}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-sm text-muted-foreground">
-                Compressing...
-              </span>
+            <div className='flex h-full w-full items-center justify-center'>
+              <span className='text-muted-foreground text-sm'>Compressing...</span>
             </div>
           )}
         </div>
 
         {/* Foreground: Original/Edited Image (Clipped by slider position) */}
         <div
-          className="absolute inset-0 overflow-hidden"
+          className='absolute inset-0 overflow-hidden'
           style={{ clipPath: `inset(0 ${100 - localPosition}% 0 0)` }}
         >
           <img
             src={editedOriginalUrl}
             alt={originalLabel}
-            className="w-full h-full object-contain pointer-events-none"
+            className='pointer-events-none h-full w-full object-contain'
             draggable={false}
           />
         </div>
 
         {/* Slider Handle */}
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-linear-to-b from-cyan-500/50 via-cyan-400 to-cyan-500/50 cursor-ew-resize z-10 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
+          className='absolute top-0 bottom-0 z-10 w-0.5 cursor-ew-resize bg-linear-to-b from-cyan-500/50 via-cyan-400 to-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
           style={{ left: `${localPosition}%` }}
         >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background border-2 border-cyan-400 shadow-lg shadow-cyan-500/20 flex items-center justify-center transition-transform hover:scale-110 active:scale-95">
-            <ArrowLeftRight className="w-5 h-5 text-cyan-400" />
+          <div className='bg-background absolute top-1/2 left-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-cyan-400 shadow-lg shadow-cyan-500/20 transition-transform hover:scale-110 active:scale-95'>
+            <ArrowLeftRight className='h-5 w-5 text-cyan-400' />
           </div>
         </div>
 
         {/* Labels */}
-        <Badge className="absolute top-4 left-4 bg-background/80 backdrop-blur rounded-sm pointer-events-none shadow-sm z-20">
+        <Badge className='bg-background/80 pointer-events-none absolute top-4 left-4 z-20 rounded-sm shadow-sm backdrop-blur'>
           {originalLabel}
         </Badge>
-        <Badge className="absolute top-4 right-4 bg-background/80 backdrop-blur rounded-sm pointer-events-none shadow-sm z-20">
+        <Badge className='bg-background/80 pointer-events-none absolute top-4 right-4 z-20 rounded-sm shadow-sm backdrop-blur'>
           Compressed
         </Badge>
       </div>

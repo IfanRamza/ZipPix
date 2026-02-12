@@ -1,1 +1,1 @@
-export { useCompressionWorker } from "./useCompressionWorker";
+export { useCompressionWorker } from './useCompressionWorker';

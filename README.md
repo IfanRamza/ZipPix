@@ -1,28 +1,55 @@
-# ZipPix - Local Image Compression PWA
+# ZipPix - Privacy-First Image Compression PWA
 
-ZipPix is a modern, privacy-focused image compression tool built with React, TypeScript, and Vite. It runs entirely in your browser using WebAssembly and Web Workers, ensuring that your images never leave your device. Inspired by Squoosh, it offers a premium, glassmorphic UI with real-time comparison.
+<p align="center">
+  <img src="public/icon_512.png" alt="ZipPix Logo" width="128" height="128">
+</p>
+
+ZipPix is a modern, privacy-focused image compression and editing tool built with React, TypeScript, and Vite. It runs entirely in your browser using Web Workers, ensuring that **your images never leave your device**.
 
 ## ✨ Features
 
-- **Privacy First**: 100% client-side processing. No server uploads.
-- **Modern Formats**: Support for WebP, AVIF, PNG, and JPEG.
-- **High-Quality Resizing**: Lanczos3 interpolation (via `pica`) for sharp upscaling and downscaling.
-- **Smart Presets**: Quick options for Web, Print, Archive, and Max Compression.
-- **Live Comparison**: Interactive split-slider to compare original vs. compressed images.
-- **Metadata Management**: Automatically strips EXIF/IPTC/XMP metadata for privacy.
-- **PWA Support**: Installable on desktop and mobile, works offline.
-- **Fast & Responsive**: Built with Vite and Tailwind CSS v4, optimized for performance.
+### Core Features
+
+- **🔒 Privacy First** - 100% client-side processing. No server uploads.
+- **🖼️ Modern Formats** - Support for WebP, AVIF, PNG, and JPEG output.
+- **📐 High-Quality Resizing** - Lanczos3 interpolation via `pica` for sharp scaling.
+- **⚡ Smart Presets** - Quick options for Web, Print, Archive, and Max Compression.
+- **🔍 Live Comparison** - Interactive split-slider to compare original vs. compressed.
+- **🗑️ Metadata Stripping** - Automatically removes EXIF/IPTC/XMP for privacy.
+
+### Image Editing (Non-Destructive)
+
+- **✂️ Crop** - Freeform and aspect ratio presets (1:1, 16:9, 4:5, etc.)
+- **🔄 Rotate & Flip** - 90° rotation and horizontal/vertical flip
+- **🎨 Filters** - Brightness, contrast, and saturation adjustments
+- **↩️ Reset to Original** - Instantly revert all edits
+
+### Batch Processing
+
+- **📦 Up to 20 Images** - Process multiple images at once
+- **🏷️ Rename Outputs** - Edit filenames before download
+- **📥 ZIP Download** - Download all compressed images as a single ZIP file
+- **📊 Progress Tracking** - Per-image status and format conversion display
+
+### PWA & Offline
+
+- **📱 Installable** - Works as a standalone app on desktop and mobile
+- **✈️ Offline Support** - Fully functional without internet connection
 
 ## 🛠️ Tech Stack
 
-- **Framework**: React 19 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS v4
-- **UI Components**: Shadcn UI (Radix Primitives)
-- **State Management**: Zustand
-- **Image Processing**: Canvas API + Pica + Web Workers
-- **Icons**: Lucide React
-- **Routing**: React Router DOM (HashRouter)
+| Category         | Technology                      |
+| ---------------- | ------------------------------- |
+| Framework        | React 19 + TypeScript           |
+| Build Tool       | Vite                            |
+| Styling          | Tailwind CSS v4                 |
+| UI Components    | Shadcn UI (Radix Primitives)    |
+| State Management | Zustand                         |
+| Image Processing | Canvas API + Pica + Web Workers |
+| Cropping         | react-image-crop                |
+| ZIP Generation   | JSZip                           |
+| Icons            | Lucide React                    |
+| Routing          | React Router DOM (HashRouter)   |
 
 ## 🚀 Getting Started
 
@@ -33,53 +60,30 @@ ZipPix is a modern, privacy-focused image compression tool built with React, Typ
 
 ### Installation
 
-1.  **Clone the repository**
+```bash
+# Clone the repository
+git clone https://github.com/IfanRamza/ZipPix.git
+cd ZipPix
 
-    ```bash
-    git clone https://github.com/yourusername/zippix.git
-    cd zippix
-    ```
+# Install dependencies
+bun install
 
-2.  **Install dependencies**
+# Start development server
+bun dev
+```
 
-    ```bash
-    bun install
-    # or
-    npm install
-    ```
-
-3.  **Start Development Server**
-
-    ```bash
-    bun dev
-    # or
-    npm run dev
-    ```
-
-4.  **Open in Browser**
-    Navigate to `http://localhost:5173`
+Open http://localhost:5173 in your browser.
 
 ## 🏗️ Building for Production
 
-To create a production-ready build:
-
 ```bash
-bun run build
-# or
-npm run build
+bun run build   # Build for production
+bun run preview # Preview the production build
 ```
 
-The output will be in the `dist/` directory. You can preview it locally:
-
-```bash
-bun run preview
-# or
-npm run preview
-```
+The output will be in the `dist/` directory.
 
 ## 🧪 Running Tests
-
-ZipPix includes a comprehensive test suite (Unit, Integration, E2E).
 
 ```bash
 # Unit Tests (Bun Test)
@@ -89,15 +93,44 @@ bun test
 npx playwright test
 ```
 
+## 📁 Project Structure
+
+```
+src/
+├── components/     # UI components (Navbar, ControlPanel, etc.)
+├── hooks/          # Custom React hooks
+├── lib/            # Utilities (imageProcessor, metadataParser)
+├── pages/          # Route pages (HomePage, BatchPage)
+├── store/          # Zustand state management
+├── workers/        # Web Workers for compression
+└── types/          # TypeScript type definitions
+```
+
+## 🗺️ Roadmap
+
+### ✅ Completed
+
+- [x] Single image compression
+- [x] Format conversion (WebP, AVIF, PNG, JPEG)
+- [x] Image editing (crop, rotate, flip, filters)
+- [x] Non-destructive editing
+- [x] Batch processing (up to 20 images)
+- [x] Metadata viewer & stripping
+- [x] PWA with offline support
+
+### 🔮 Future Enhancements
+
+- [ ] Browser extension
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please fork the repository and submit a Pull Request.
 
-1.  Fork the Project
-2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the Branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## 📄 License
 
@@ -109,4 +142,4 @@ ZipPix does not collect, store, or transmit any image data. All processing is pe
 
 ---
 
-**Built with ❤️ using React & Bun.**
+**Built with ❤️ using React & Bun**

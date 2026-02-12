@@ -1,4 +1,4 @@
-import type { SupportedFormat } from "@/types";
+import type { SupportedFormat } from '@/types';
 
 /**
  * Convert image to a different format
@@ -6,7 +6,7 @@ import type { SupportedFormat } from "@/types";
 export async function convertFormat(
   file: File,
   targetFormat: SupportedFormat,
-  quality: number = 85
+  quality: number = 85,
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -14,21 +14,19 @@ export async function convertFormat(
 
     img.onload = () => {
       try {
-        const canvas = document.createElement("canvas");
+        const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
 
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext('2d');
         if (!ctx) {
-          reject(new Error("Canvas context not available"));
+          reject(new Error('Canvas context not available'));
           return;
         }
 
         ctx.drawImage(img, 0, 0);
 
-        const mimeType = `image/${
-          targetFormat === "jpeg" ? "jpeg" : targetFormat
-        }`;
+        const mimeType = `image/${targetFormat === 'jpeg' ? 'jpeg' : targetFormat}`;
 
         canvas.toBlob(
           (blob) => {
@@ -36,11 +34,11 @@ export async function convertFormat(
             if (blob) {
               resolve(blob);
             } else {
-              reject(new Error("Format conversion failed"));
+              reject(new Error('Format conversion failed'));
             }
           },
           mimeType,
-          quality / 100
+          quality / 100,
         );
       } catch (error) {
         URL.revokeObjectURL(url);
@@ -50,7 +48,7 @@ export async function convertFormat(
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error("Failed to load image"));
+      reject(new Error('Failed to load image'));
     };
 
     img.src = url;
@@ -61,7 +59,7 @@ export async function convertFormat(
  * Check if browser supports a format
  */
 export function isFormatSupported(format: SupportedFormat): boolean {
-  const canvas = document.createElement("canvas");
+  const canvas = document.createElement('canvas');
   canvas.width = 1;
   canvas.height = 1;
 
@@ -76,7 +74,7 @@ export function isFormatSupported(format: SupportedFormat): boolean {
  * Get supported formats in current browser
  */
 export function getSupportedFormats(): SupportedFormat[] {
-  const formats: SupportedFormat[] = ["jpeg", "png", "webp", "avif"];
+  const formats: SupportedFormat[] = ['jpeg', 'png', 'webp', 'avif'];
   return formats.filter(isFormatSupported);
 }
 
@@ -85,10 +83,10 @@ export function getSupportedFormats(): SupportedFormat[] {
  */
 export function detectFormat(file: File): SupportedFormat | null {
   const mimeToFormat: Record<string, SupportedFormat> = {
-    "image/jpeg": "jpeg",
-    "image/png": "png",
-    "image/webp": "webp",
-    "image/avif": "avif",
+    'image/jpeg': 'jpeg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/avif': 'avif',
   };
   return mimeToFormat[file.type] || null;
 }

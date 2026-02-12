@@ -1,10 +1,10 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { useImageStore } from "@/store/imageStore";
-import { DEFAULT_EDIT_STATE, type EditState } from "@/types";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { useImageStore } from '@/store/imageStore';
+import { DEFAULT_EDIT_STATE, type EditState } from '@/types';
 import {
   Check,
   Contrast,
@@ -17,14 +17,10 @@ import {
   Sun,
   Undo2,
   X,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import ReactCrop, {
-  centerCrop,
-  type Crop as CropType,
-  makeAspectCrop,
-} from "react-image-crop";
-import "react-image-crop/dist/ReactCrop.css";
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import ReactCrop, { centerCrop, type Crop as CropType, makeAspectCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 interface ImageEditorProps {
   imageUrl: string;
@@ -33,32 +29,22 @@ interface ImageEditorProps {
 
 // Aspect ratio presets
 const ASPECT_PRESETS = [
-  { label: "Free", value: undefined, icon: "🔓" },
-  { label: "1:1", value: 1, icon: "⬜" },
-  { label: "16:9", value: 16 / 9, icon: "🖥️" },
-  { label: "9:16", value: 9 / 16, icon: "📱" },
-  { label: "4:5", value: 4 / 5, icon: "📷" },
-  { label: "4:3", value: 4 / 3, icon: "🖼️" },
+  { label: 'Free', value: undefined, icon: '🔓' },
+  { label: '1:1', value: 1, icon: '⬜' },
+  { label: '16:9', value: 16 / 9, icon: '🖥️' },
+  { label: '9:16', value: 9 / 16, icon: '📱' },
+  { label: '4:5', value: 4 / 5, icon: '📷' },
+  { label: '4:3', value: 4 / 3, icon: '🖼️' },
 ];
 
 // Generate preview URL from canvas with all edits applied
-async function generatePreview(
-  imageUrl: string,
-  editState: EditState
-): Promise<string> {
+async function generatePreview(imageUrl: string, editState: EditState): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const {
-        crop,
-        rotation,
-        flipHorizontal,
-        flipVertical,
-        brightness,
-        contrast,
-        saturation,
-      } = editState;
+      const { crop, rotation, flipHorizontal, flipVertical, brightness, contrast, saturation } =
+        editState;
 
       // Determine source dimensions (after crop)
       const srcX = crop?.x ?? 0;
@@ -72,13 +58,13 @@ async function generatePreview(
       const finalHeight = isRotatedSideways ? srcW : srcH;
 
       // Create canvas
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.width = finalWidth;
       canvas.height = finalHeight;
-      const ctx = canvas.getContext("2d");
+      const ctx = canvas.getContext('2d');
 
       if (!ctx) {
-        reject(new Error("Failed to get canvas context"));
+        reject(new Error('Failed to get canvas context'));
         return;
       }
 
@@ -97,17 +83,7 @@ async function generatePreview(
       ctx.scale(scaleX, scaleY);
 
       // Draw the cropped portion centered
-      ctx.drawImage(
-        img,
-        srcX,
-        srcY,
-        srcW,
-        srcH,
-        -srcW / 2,
-        -srcH / 2,
-        srcW,
-        srcH
-      );
+      ctx.drawImage(img, srcX, srcY, srcW, srcH, -srcW / 2, -srcH / 2, srcW, srcH);
 
       ctx.restore();
 
@@ -150,9 +126,9 @@ async function generatePreview(
         ctx.putImageData(imageData, 0, 0);
       }
 
-      resolve(canvas.toDataURL("image/jpeg", 0.9));
+      resolve(canvas.toDataURL('image/jpeg', 0.9));
     };
-    img.onerror = () => reject(new Error("Failed to load image"));
+    img.onerror = () => reject(new Error('Failed to load image'));
     img.src = imageUrl;
   });
 }
@@ -192,13 +168,13 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
     width: 0,
     height: 0,
   });
-  const [customWidth, setCustomWidth] = useState("");
-  const [customHeight, setCustomHeight] = useState("");
+  const [customWidth, setCustomWidth] = useState('');
+  const [customHeight, setCustomHeight] = useState('');
 
   // Sync local state from store when opening
   useEffect(() => {
     setLocalState(editState);
-  }, []);
+  }, [editState]);
 
   // Generate preview whenever localState changes (debounced)
   useEffect(() => {
@@ -209,7 +185,7 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
           const url = await generatePreview(imageUrl, localState);
           setPreviewUrl(url);
         } catch (error) {
-          console.error("Failed to generate preview:", error);
+          console.error('Failed to generate preview:', error);
         } finally {
           setIsGeneratingPreview(false);
         }
@@ -220,25 +196,20 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
     return () => clearTimeout(timer);
   }, [localState, imageUrl]);
 
-  const handleRotate = (direction: "cw" | "ccw") => {
+  const handleRotate = (direction: 'cw' | 'ccw') => {
     setLocalState((prev) => {
       const rotations: (0 | 90 | 180 | 270)[] = [0, 90, 180, 270];
       const currentIndex = rotations.indexOf(prev.rotation);
-      const newIndex =
-        direction === "cw"
-          ? (currentIndex + 1) % 4
-          : (currentIndex - 1 + 4) % 4;
+      const newIndex = direction === 'cw' ? (currentIndex + 1) % 4 : (currentIndex - 1 + 4) % 4;
       return { ...prev, rotation: rotations[newIndex] };
     });
   };
 
-  const handleFlip = (axis: "horizontal" | "vertical") => {
+  const handleFlip = (axis: 'horizontal' | 'vertical') => {
     setLocalState((prev) => ({
       ...prev,
-      flipHorizontal:
-        axis === "horizontal" ? !prev.flipHorizontal : prev.flipHorizontal,
-      flipVertical:
-        axis === "vertical" ? !prev.flipVertical : prev.flipVertical,
+      flipHorizontal: axis === 'horizontal' ? !prev.flipHorizontal : prev.flipHorizontal,
+      flipVertical: axis === 'vertical' ? !prev.flipVertical : prev.flipVertical,
     }));
   };
 
@@ -247,8 +218,8 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
     setPreviewUrl(imageUrl);
     setCrop(undefined);
     setCompletedCrop(undefined);
-    setCustomWidth("");
-    setCustomHeight("");
+    setCustomWidth('');
+    setCustomHeight('');
   };
 
   // Initialize crop when entering crop mode
@@ -257,13 +228,13 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
     if (imgRef.current && aspect) {
       const { width, height } = imgRef.current;
       const newCrop = centerCrop(
-        makeAspectCrop({ unit: "%", width: 80 }, aspect, width, height),
+        makeAspectCrop({ unit: '%', width: 80 }, aspect, width, height),
         width,
-        height
+        height,
       );
       setCrop(newCrop);
     } else {
-      setCrop({ unit: "%", x: 10, y: 10, width: 80, height: 80 });
+      setCrop({ unit: '%', x: 10, y: 10, width: 80, height: 80 });
     }
   };
 
@@ -294,9 +265,9 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
     if (imgRef.current && newAspect) {
       const { width, height } = imgRef.current;
       const newCrop = centerCrop(
-        makeAspectCrop({ unit: "%", width: 80 }, newAspect, width, height),
+        makeAspectCrop({ unit: '%', width: 80 }, newAspect, width, height),
         width,
-        height
+        height,
       );
       setCrop(newCrop);
     }
@@ -314,64 +285,57 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14] flex flex-col">
+    <div className='fixed inset-0 z-50 flex flex-col bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14]'>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/40 backdrop-blur-xl">
-        <h2 className="text-lg font-semibold">
-          {isCropMode ? "Crop Image" : "Edit Image"}
+      <div className='border-border/50 bg-background/40 flex items-center justify-between border-b p-4 backdrop-blur-xl'>
+        <h2 className='text-lg font-semibold'>
+          {isCropMode ? 'Crop Image' : 'Edit Image'}
           {isGeneratingPreview && (
-            <span className="ml-2 text-sm text-muted-foreground">
-              (updating...)
-            </span>
+            <span className='text-muted-foreground ml-2 text-sm'>(updating...)</span>
           )}
         </h2>
-        <div className="flex gap-2">
+        <div className='flex gap-2'>
           {isCropMode ? (
             <>
               <Button
-                variant="ghost"
-                size="sm"
+                variant='ghost'
+                size='sm'
                 onClick={() => setIsCropMode(false)}
-                className="cursor-pointer"
+                className='cursor-pointer'
               >
-                <X className="w-4 h-4 mr-1" />
+                <X className='mr-1 h-4 w-4' />
                 Cancel
               </Button>
               <Button
-                size="sm"
+                size='sm'
                 onClick={handleApplyCrop}
-                className="bg-cyan-500 hover:bg-cyan-600 cursor-pointer"
+                className='cursor-pointer bg-cyan-500 hover:bg-cyan-600'
               >
-                <Check className="w-4 h-4 mr-1" />
+                <Check className='mr-1 h-4 w-4' />
                 Apply Crop
               </Button>
             </>
           ) : (
             <>
               <Button
-                variant="ghost"
-                size="sm"
+                variant='ghost'
+                size='sm'
                 onClick={handleLocalReset}
-                className="cursor-pointer"
+                className='cursor-pointer'
               >
-                <Undo2 className="w-4 h-4 mr-1" />
+                <Undo2 className='mr-1 h-4 w-4' />
                 Reset
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCancel}
-                className="cursor-pointer"
-              >
-                <X className="w-4 h-4 mr-1" />
+              <Button variant='ghost' size='sm' onClick={handleCancel} className='cursor-pointer'>
+                <X className='mr-1 h-4 w-4' />
                 Cancel
               </Button>
               <Button
-                size="sm"
+                size='sm'
                 onClick={handleApply}
-                className="bg-cyan-500 hover:bg-cyan-600 cursor-pointer"
+                className='cursor-pointer bg-cyan-500 hover:bg-cyan-600'
               >
-                <Check className="w-4 h-4 mr-1" />
+                <Check className='mr-1 h-4 w-4' />
                 Apply
               </Button>
             </>
@@ -380,26 +344,26 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className='flex flex-1 overflow-hidden'>
         {/* Preview */}
-        <div className="flex-1 flex items-center justify-center p-8 overflow-hidden">
+        <div className='flex flex-1 items-center justify-center overflow-hidden p-8'>
           {isCropMode ? (
-            <div className="max-w-full max-h-full overflow-hidden flex items-center justify-center">
+            <div className='flex max-h-full max-w-full items-center justify-center overflow-hidden'>
               <ReactCrop
                 crop={crop}
                 onChange={(c) => setCrop(c)}
                 onComplete={(c) => setCompletedCrop(c)}
                 aspect={aspect}
-                style={{ maxHeight: "70vh", maxWidth: "100%" }}
+                style={{ maxHeight: '70vh', maxWidth: '100%' }}
               >
                 <img
                   ref={imgRef}
                   src={imageUrl}
-                  alt="Crop"
+                  alt='Crop'
                   style={{
-                    maxHeight: "70vh",
-                    maxWidth: "100%",
-                    objectFit: "contain",
+                    maxHeight: '70vh',
+                    maxWidth: '100%',
+                    objectFit: 'contain',
                   }}
                   onLoad={(e) => {
                     const img = e.currentTarget;
@@ -415,8 +379,8 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
             <img
               ref={imgRef}
               src={previewUrl}
-              alt="Preview"
-              className="max-w-full max-h-full object-contain rounded shadow-2xl transition-all duration-200"
+              alt='Preview'
+              className='max-h-full max-w-full rounded object-contain shadow-2xl transition-all duration-200'
               onLoad={(e) => {
                 const img = e.currentTarget;
                 if (!hasAnyEdits(localState)) {
@@ -431,23 +395,21 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
         </div>
 
         {/* Controls Sidebar */}
-        <div className="w-80 border-l border-border/50 p-4 overflow-y-auto space-y-6">
+        <div className='border-border/50 w-80 space-y-6 overflow-y-auto border-l p-4'>
           {isCropMode ? (
             <>
               {/* Crop Controls */}
-              <Card className="bg-background/40 border-border/50">
-                <CardContent className="p-4 space-y-4">
-                  <Label className="text-sm font-medium">Aspect Ratio</Label>
-                  <div className="grid grid-cols-3 gap-2">
+              <Card className='bg-background/40 border-border/50'>
+                <CardContent className='space-y-4 p-4'>
+                  <Label className='text-sm font-medium'>Aspect Ratio</Label>
+                  <div className='grid grid-cols-3 gap-2'>
                     {ASPECT_PRESETS.map((preset) => (
                       <Button
                         key={preset.label}
-                        variant={
-                          aspect === preset.value ? "default" : "outline"
-                        }
-                        size="sm"
+                        variant={aspect === preset.value ? 'default' : 'outline'}
+                        size='sm'
                         onClick={() => handleAspectChange(preset.value)}
-                        className="text-xs cursor-pointer"
+                        className='cursor-pointer text-xs'
                       >
                         {preset.icon} {preset.label}
                       </Button>
@@ -457,33 +419,25 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
               </Card>
 
               {/* Custom Size Input */}
-              <Card className="bg-background/40 border-border/50">
-                <CardContent className="p-4 space-y-3">
-                  <Label className="text-sm font-medium">
-                    Custom Size (px)
-                  </Label>
-                  <div className="grid grid-cols-2 gap-2">
+              <Card className='bg-background/40 border-border/50'>
+                <CardContent className='space-y-3 p-4'>
+                  <Label className='text-sm font-medium'>Custom Size (px)</Label>
+                  <div className='grid grid-cols-2 gap-2'>
                     <div>
-                      <span className="text-[10px] text-muted-foreground uppercase">
-                        Width
-                      </span>
+                      <span className='text-muted-foreground text-[10px] uppercase'>Width</span>
                       <Input
-                        type="number"
-                        placeholder="Width"
+                        type='number'
+                        placeholder='Width'
                         value={customWidth}
                         onChange={(e) => {
                           setCustomWidth(e.target.value);
                           const w = parseInt(e.target.value);
                           const h = parseInt(customHeight);
                           if (w && h && imgRef.current) {
-                            const scaleX =
-                              imgRef.current.width /
-                              imgRef.current.naturalWidth;
-                            const scaleY =
-                              imgRef.current.height /
-                              imgRef.current.naturalHeight;
+                            const scaleX = imgRef.current.width / imgRef.current.naturalWidth;
+                            const scaleY = imgRef.current.height / imgRef.current.naturalHeight;
                             setCrop({
-                              unit: "px",
+                              unit: 'px',
                               x: 0,
                               y: 0,
                               width: w * scaleX,
@@ -492,30 +446,24 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
                             setAspect(undefined);
                           }
                         }}
-                        className="h-8 font-mono text-sm"
+                        className='h-8 font-mono text-sm'
                       />
                     </div>
                     <div>
-                      <span className="text-[10px] text-muted-foreground uppercase">
-                        Height
-                      </span>
+                      <span className='text-muted-foreground text-[10px] uppercase'>Height</span>
                       <Input
-                        type="number"
-                        placeholder="Height"
+                        type='number'
+                        placeholder='Height'
                         value={customHeight}
                         onChange={(e) => {
                           setCustomHeight(e.target.value);
                           const w = parseInt(customWidth);
                           const h = parseInt(e.target.value);
                           if (w && h && imgRef.current) {
-                            const scaleX =
-                              imgRef.current.width /
-                              imgRef.current.naturalWidth;
-                            const scaleY =
-                              imgRef.current.height /
-                              imgRef.current.naturalHeight;
+                            const scaleX = imgRef.current.width / imgRef.current.naturalWidth;
+                            const scaleY = imgRef.current.height / imgRef.current.naturalHeight;
                             setCrop({
-                              unit: "px",
+                              unit: 'px',
                               x: 0,
                               y: 0,
                               width: w * scaleX,
@@ -524,7 +472,7 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
                             setAspect(undefined);
                           }
                         }}
-                        className="h-8 font-mono text-sm"
+                        className='h-8 font-mono text-sm'
                       />
                     </div>
                   </div>
@@ -532,32 +480,30 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
               </Card>
 
               {/* Crop Info */}
-              <Card className="bg-background/40 border-border/50">
-                <CardContent className="p-4 space-y-2">
-                  <Label className="text-sm font-medium">Crop Info</Label>
-                  <div className="text-xs text-muted-foreground space-y-1">
+              <Card className='bg-background/40 border-border/50'>
+                <CardContent className='space-y-2 p-4'>
+                  <Label className='text-sm font-medium'>Crop Info</Label>
+                  <div className='text-muted-foreground space-y-1 text-xs'>
                     <p>
-                      Original: {imageNaturalSize.width} ×{" "}
-                      {imageNaturalSize.height} px
+                      Original: {imageNaturalSize.width} × {imageNaturalSize.height} px
                     </p>
                     {completedCrop && imgRef.current && (
-                      <p className="text-cyan-400">
-                        Crop Area:{" "}
+                      <p className='text-cyan-400'>
+                        Crop Area:{' '}
                         {Math.round(
                           completedCrop.width *
-                            (imgRef.current.naturalWidth / imgRef.current.width)
-                        )}{" "}
-                        ×{" "}
+                            (imgRef.current.naturalWidth / imgRef.current.width),
+                        )}{' '}
+                        ×{' '}
                         {Math.round(
                           completedCrop.height *
-                            (imgRef.current.naturalHeight /
-                              imgRef.current.height)
-                        )}{" "}
+                            (imgRef.current.naturalHeight / imgRef.current.height),
+                        )}{' '}
                         px
                       </p>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground text-center mt-2">
+                  <p className='text-muted-foreground mt-2 text-center text-xs'>
                     Drag corners to adjust crop area
                   </p>
                 </CardContent>
@@ -566,70 +512,67 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
           ) : (
             <>
               {/* Crop Button */}
-              <Card className="bg-background/40 border-border/50">
-                <CardContent className="p-4">
+              <Card className='bg-background/40 border-border/50'>
+                <CardContent className='p-4'>
                   <Button
-                    variant="outline"
-                    className="w-full cursor-pointer"
+                    variant='outline'
+                    className='w-full cursor-pointer'
                     onClick={handleEnterCropMode}
                   >
-                    <Crop className="w-4 h-4 mr-2" />
+                    <Crop className='mr-2 h-4 w-4' />
                     Crop Image
                   </Button>
                   {localState.crop && (
-                    <p className="text-xs text-green-400 text-center mt-2">
-                      ✓ Crop: {localState.crop.width}×{localState.crop.height}{" "}
-                      px
+                    <p className='mt-2 text-center text-xs text-green-400'>
+                      ✓ Crop: {localState.crop.width}×{localState.crop.height} px
                     </p>
                   )}
                 </CardContent>
               </Card>
 
               {/* Transform Controls */}
-              <Card className="bg-background/40 border-border/50">
-                <CardContent className="p-4 space-y-4">
-                  <Label className="text-sm font-medium">Transform</Label>
+              <Card className='bg-background/40 border-border/50'>
+                <CardContent className='space-y-4 p-4'>
+                  <Label className='text-sm font-medium'>Transform</Label>
 
-                  <div className="flex gap-2">
+                  <div className='flex gap-2'>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRotate("ccw")}
-                      className="flex-1 cursor-pointer"
+                      variant='outline'
+                      size='sm'
+                      onClick={() => handleRotate('ccw')}
+                      className='flex-1 cursor-pointer'
                     >
-                      <RotateCcw className="w-4 h-4 mr-1" />
+                      <RotateCcw className='mr-1 h-4 w-4' />
                       Left
                     </Button>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRotate("cw")}
-                      className="flex-1 cursor-pointer"
+                      variant='outline'
+                      size='sm'
+                      onClick={() => handleRotate('cw')}
+                      className='flex-1 cursor-pointer'
                     >
-                      <RotateCw className="w-4 h-4 mr-1" />
+                      <RotateCw className='mr-1 h-4 w-4' />
                       Right
                     </Button>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className='flex gap-2'>
                     <Button
-                      variant={
-                        localState.flipHorizontal ? "default" : "outline"
-                      }
-                      size="sm"
-                      onClick={() => handleFlip("horizontal")}
-                      className="flex-1 cursor-pointer"
+                      variant={localState.flipHorizontal ? 'default' : 'outline'}
+                      size='sm'
+                      onClick={() => handleFlip('horizontal')}
+                      className='flex-1 cursor-pointer'
                     >
-                      <FlipHorizontal className="w-4 h-4 mr-1" />
+                      <FlipHorizontal className='mr-1 h-4 w-4' />
                       Flip H
                     </Button>
                     <Button
-                      variant={localState.flipVertical ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handleFlip("vertical")}
-                      className="flex-1 cursor-pointer"
+                      variant={localState.flipVertical ? 'default' : 'outline'}
+                      size='sm'
+                      onClick={() => handleFlip('vertical')}
+                      className='flex-1 cursor-pointer'
                     >
-                      <FlipVertical className="w-4 h-4 mr-1" />
+                      <FlipVertical className='mr-1 h-4 w-4' />
                       Flip V
                     </Button>
                   </div>
@@ -637,26 +580,24 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
               </Card>
 
               {/* Filter Controls */}
-              <Card className="bg-background/40 border-border/50">
-                <CardContent className="p-4 space-y-5">
-                  <Label className="text-sm font-medium">Adjustments</Label>
+              <Card className='bg-background/40 border-border/50'>
+                <CardContent className='space-y-5 p-4'>
+                  <Label className='text-sm font-medium'>Adjustments</Label>
 
                   {/* Brightness */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1">
-                        <Sun className="w-3 h-3" /> Brightness
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between text-xs'>
+                      <span className='flex items-center gap-1'>
+                        <Sun className='h-3 w-3' /> Brightness
                       </span>
-                      <span className="font-mono text-muted-foreground">
-                        {localState.brightness > 0 ? "+" : ""}
+                      <span className='text-muted-foreground font-mono'>
+                        {localState.brightness > 0 ? '+' : ''}
                         {localState.brightness}
                       </span>
                     </div>
                     <Slider
                       value={[localState.brightness]}
-                      onValueChange={([v]) =>
-                        setLocalState((prev) => ({ ...prev, brightness: v }))
-                      }
+                      onValueChange={([v]) => setLocalState((prev) => ({ ...prev, brightness: v }))}
                       min={-100}
                       max={100}
                       step={1}
@@ -664,21 +605,19 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
                   </div>
 
                   {/* Contrast */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1">
-                        <Contrast className="w-3 h-3" /> Contrast
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between text-xs'>
+                      <span className='flex items-center gap-1'>
+                        <Contrast className='h-3 w-3' /> Contrast
                       </span>
-                      <span className="font-mono text-muted-foreground">
-                        {localState.contrast > 0 ? "+" : ""}
+                      <span className='text-muted-foreground font-mono'>
+                        {localState.contrast > 0 ? '+' : ''}
                         {localState.contrast}
                       </span>
                     </div>
                     <Slider
                       value={[localState.contrast]}
-                      onValueChange={([v]) =>
-                        setLocalState((prev) => ({ ...prev, contrast: v }))
-                      }
+                      onValueChange={([v]) => setLocalState((prev) => ({ ...prev, contrast: v }))}
                       min={-100}
                       max={100}
                       step={1}
@@ -686,21 +625,19 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
                   </div>
 
                   {/* Saturation */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1">
-                        <Palette className="w-3 h-3" /> Saturation
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between text-xs'>
+                      <span className='flex items-center gap-1'>
+                        <Palette className='h-3 w-3' /> Saturation
                       </span>
-                      <span className="font-mono text-muted-foreground">
-                        {localState.saturation > 0 ? "+" : ""}
+                      <span className='text-muted-foreground font-mono'>
+                        {localState.saturation > 0 ? '+' : ''}
                         {localState.saturation}
                       </span>
                     </div>
                     <Slider
                       value={[localState.saturation]}
-                      onValueChange={([v]) =>
-                        setLocalState((prev) => ({ ...prev, saturation: v }))
-                      }
+                      onValueChange={([v]) => setLocalState((prev) => ({ ...prev, saturation: v }))}
                       min={-100}
                       max={100}
                       step={1}
@@ -710,13 +647,10 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
               </Card>
 
               {/* Status Info */}
-              <p className="text-xs text-muted-foreground text-center">
-                Rotation: {localState.rotation}° | Flip:{" "}
-                {localState.flipHorizontal ? "H" : ""}
-                {localState.flipVertical ? "V" : ""}
-                {!localState.flipHorizontal && !localState.flipVertical
-                  ? "None"
-                  : ""}
+              <p className='text-muted-foreground text-center text-xs'>
+                Rotation: {localState.rotation}° | Flip: {localState.flipHorizontal ? 'H' : ''}
+                {localState.flipVertical ? 'V' : ''}
+                {!localState.flipHorizontal && !localState.flipVertical ? 'None' : ''}
               </p>
             </>
           )}

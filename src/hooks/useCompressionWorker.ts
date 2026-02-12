@@ -1,9 +1,9 @@
-import { useImageStore } from "@/store/imageStore";
-import type { CompressionSettings, EditState } from "@/types";
-import { useCallback, useEffect, useRef } from "react";
+import { useImageStore } from '@/store/imageStore';
+import type { CompressionSettings, EditState } from '@/types';
+import { useCallback, useEffect, useRef } from 'react';
 
 interface CompressionResponse {
-  type: "SUCCESS" | "ERROR" | "PROGRESS";
+  type: 'SUCCESS' | 'ERROR' | 'PROGRESS';
   id: string;
   blob?: Blob;
   error?: string;
@@ -19,26 +19,23 @@ export function useCompressionWorker() {
 
   // Initialize worker
   useEffect(() => {
-    workerRef.current = new Worker(
-      new URL("../workers/compression.worker.ts", import.meta.url),
-      { type: "module" }
-    );
+    workerRef.current = new Worker(new URL('../workers/compression.worker.ts', import.meta.url), {
+      type: 'module',
+    });
 
-    workerRef.current.onmessage = (
-      event: MessageEvent<CompressionResponse>
-    ) => {
+    workerRef.current.onmessage = (event: MessageEvent<CompressionResponse>) => {
       const { type, blob, error } = event.data;
 
       switch (type) {
-        case "SUCCESS":
+        case 'SUCCESS':
           if (blob) {
             setCompressedImage(blob);
           }
           break;
-        case "ERROR":
-          setError(error || "Compression failed");
+        case 'ERROR':
+          setError(error || 'Compression failed');
           break;
-        case "PROGRESS":
+        case 'PROGRESS':
           // Could update progress state here
           break;
       }
@@ -55,13 +52,9 @@ export function useCompressionWorker() {
 
   // Compress function with edit state support
   const compress = useCallback(
-    async (
-      file: File,
-      settings: CompressionSettings,
-      editState?: EditState
-    ) => {
+    async (file: File, settings: CompressionSettings, editState?: EditState) => {
       if (!workerRef.current) {
-        setError("Worker not initialized");
+        setError('Worker not initialized');
         return;
       }
 
@@ -71,7 +64,7 @@ export function useCompressionWorker() {
         const arrayBuffer = await file.arrayBuffer();
 
         workerRef.current.postMessage({
-          type: "COMPRESS",
+          type: 'COMPRESS',
           id: Date.now().toString(),
           imageData: arrayBuffer,
           fileName: file.name,
@@ -80,12 +73,10 @@ export function useCompressionWorker() {
           editState, // Pass edit state to worker
         });
       } catch (error) {
-        setError(
-          error instanceof Error ? error.message : "Failed to read file"
-        );
+        setError(error instanceof Error ? error.message : 'Failed to read file');
       }
     },
-    [setError, setProcessing]
+    [setError, setProcessing],
   );
 
   return { compress };
