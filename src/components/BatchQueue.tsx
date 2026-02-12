@@ -50,9 +50,9 @@ const BatchQueueItem = memo(function BatchQueueItem({
   const [localDimensions, setLocalDimensions] = useState<{
     width: number;
     height: number;
-  } | null>(null);
+  } | null>(item.width && item.height ? { width: item.width, height: item.height } : null);
 
-  // Load dimensions when item mounts
+  // Load dimensions asynchronously when not available from props
   useEffect(() => {
     if (!item.width || !item.height) {
       const img = new Image();
@@ -64,8 +64,6 @@ const BatchQueueItem = memo(function BatchQueueItem({
         onDimensionsLoad(item.id, img.naturalWidth, img.naturalHeight);
       };
       img.src = item.previewUrl;
-    } else {
-      setLocalDimensions({ width: item.width, height: item.height });
     }
   }, [item.id, item.previewUrl, item.width, item.height, onDimensionsLoad]);
 

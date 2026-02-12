@@ -174,7 +174,7 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
   // Sync local state from store when opening
   useEffect(() => {
     setLocalState(editState);
-  }, []);
+  }, [editState]);
 
   // Generate preview whenever localState changes (debounced)
   useEffect(() => {

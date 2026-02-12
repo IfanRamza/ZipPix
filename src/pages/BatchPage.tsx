@@ -7,7 +7,7 @@ import { Navbar } from '@/components/Navbar';
 import { useBatchProcessor } from '@/hooks/useBatchProcessor';
 import { useBatchStats } from '@/store/batchStore';
 import { useImageStore } from '@/store/imageStore';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export function BatchPage() {
   const { settings, updateSettings } = useImageStore();
@@ -15,12 +15,15 @@ export function BatchPage() {
   const { start, isProcessing: isProcessorBusy } = useBatchProcessor();
 
   // Set default resize to 100% on mount
+  const hasInitialized = useRef(false);
   useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
     // Only set if not already set
     if (!settings.width || !settings.height) {
       updateSettings({ width: undefined, height: undefined });
     }
-  }, []);
+  }, [settings.width, settings.height, updateSettings]);
 
   const handleResetSettings = () => {
     updateSettings({

@@ -125,15 +125,10 @@ export function ComparisonSlider({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [localPosition, setLocalPosition] = useState(position);
-  const [containerWidth, setContainerWidth] = useState(0);
 
   // Get editState from store to apply to original preview
   const { editState } = useImageStore();
   const [editedOriginalUrl, setEditedOriginalUrl] = useState<string>(originalUrl);
-
-  useEffect(() => {
-    setLocalPosition(position);
-  }, [position]);
 
   // Generate edited preview when editState or originalUrl changes
   useEffect(() => {
@@ -163,19 +158,6 @@ export function ComparisonSlider({
       cancelled = true;
     };
   }, [editState, originalUrl]);
-
-  // Track container width for proper image sizing
-  useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth);
-      }
-    };
-
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, []);
 
   const updatePosition = useCallback(
     (clientX: number) => {

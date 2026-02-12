@@ -13,7 +13,11 @@ interface FilenameEditorProps {
 }
 
 export function FilenameEditor({ originalFilename, format, onChange }: FilenameEditorProps) {
-  const [filename, setFilename] = useState('');
+  const [filename, setFilename] = useState(() => {
+    const lastDot = originalFilename.lastIndexOf('.');
+    const base = lastDot > 0 ? originalFilename.slice(0, lastDot) : originalFilename;
+    return strictSanitizeFilename(`${base}_compressed.${format}`);
+  });
   const [isCopied, setIsCopied] = useState(false);
 
   // Generate filename when original or format changes
@@ -23,7 +27,8 @@ export function FilenameEditor({ originalFilename, format, onChange }: FilenameE
     const newFilename = strictSanitizeFilename(`${base}_compressed.${format}`);
     setFilename(newFilename);
     onChange?.(newFilename);
-  }, [originalFilename, format, onChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [originalFilename, format]);
 
   const handleChange = (value: string) => {
     setFilename(value);

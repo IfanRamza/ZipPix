@@ -35,24 +35,18 @@ export function ControlPanel({
   // Local state for inputs to allow smooth editing/sliding
   const [localQuality, setLocalQuality] = useState(settings.quality);
   const [localEffort, setLocalEffort] = useState(settings.effort || 4);
-  const [widthInput, setWidthInput] = useState(settings.width?.toString() || '');
-  const [heightInput, setHeightInput] = useState(settings.height?.toString() || '');
+  const [widthInput, setWidthInput] = useState(
+    settings.width?.toString() || (originalDimensions ? originalDimensions.width.toString() : ''),
+  );
+  const [heightInput, setHeightInput] = useState(
+    settings.height?.toString() || (originalDimensions ? originalDimensions.height.toString() : ''),
+  );
 
-  // Sync upstream changes to local state
-  useEffect(() => {
-    setLocalQuality(settings.quality);
-  }, [settings.quality]);
-
-  useEffect(() => {
-    setLocalEffort(settings.effort || 4);
-  }, [settings.effort]);
-
-  useEffect(() => {
-    if (originalDimensions && !settings.width && !settings.height) {
-      setWidthInput(originalDimensions.width.toString());
-      setHeightInput(originalDimensions.height.toString());
-    }
-  }, [originalDimensions, settings.width, settings.height]);
+  // Sync upstream changes to local state (e.g. when preset buttons change quality/effort)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setLocalQuality(settings.quality), [settings.quality]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setLocalEffort(settings.effort || 4), [settings.effort]);
 
   // Debounce Quality Updates
   useEffect(() => {
@@ -66,8 +60,9 @@ export function ControlPanel({
 
   // Debounce Effort Updates
   useEffect(() => {
+    const currentEffort = settings.effort || 4;
     const timer = setTimeout(() => {
-      if (localEffort !== (settings.effort || 4)) {
+      if (localEffort !== currentEffort) {
         onSettingsChange({ effort: localEffort });
       }
     }, 200);
