@@ -1,4 +1,4 @@
-import exifr from "exifr";
+import exifr from 'exifr';
 
 export interface ImageMetadata {
   make?: string;
@@ -21,9 +21,7 @@ export interface ImageMetadata {
 /**
  * Extract metadata from image file
  */
-export async function extractMetadata(
-  file: File
-): Promise<ImageMetadata | null> {
+export async function extractMetadata(file: File): Promise<ImageMetadata | null> {
   try {
     const data = await exifr.parse(file, {
       gps: true,
@@ -38,8 +36,7 @@ export async function extractMetadata(
       make: data.Make,
       model: data.Model,
       software: data.Software,
-      dateTime:
-        data.DateTimeOriginal?.toISOString() || data.CreateDate?.toISOString(),
+      dateTime: data.DateTimeOriginal?.toISOString() || data.CreateDate?.toISOString(),
       gps:
         data.latitude && data.longitude
           ? {
@@ -95,13 +92,13 @@ export async function stripMetadata(file: File): Promise<Blob> {
 
     img.onload = () => {
       try {
-        const canvas = document.createElement("canvas");
+        const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
 
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext('2d');
         if (!ctx) {
-          reject(new Error("Canvas context not available"));
+          reject(new Error('Canvas context not available'));
           return;
         }
 
@@ -114,11 +111,11 @@ export async function stripMetadata(file: File): Promise<Blob> {
             if (blob) {
               resolve(blob);
             } else {
-              reject(new Error("Failed to strip metadata"));
+              reject(new Error('Failed to strip metadata'));
             }
           },
           file.type,
-          1.0 // Maximum quality to preserve image
+          1.0, // Maximum quality to preserve image
         );
       } catch (error) {
         URL.revokeObjectURL(url);
@@ -128,7 +125,7 @@ export async function stripMetadata(file: File): Promise<Blob> {
 
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error("Failed to load image"));
+      reject(new Error('Failed to load image'));
     };
 
     img.src = url;
@@ -145,19 +142,13 @@ export async function getMetadataSummary(file: File): Promise<string[]> {
   const summary: string[] = [];
 
   if (metadata.make || metadata.model) {
-    summary.push(
-      `Camera: ${[metadata.make, metadata.model].filter(Boolean).join(" ")}`
-    );
+    summary.push(`Camera: ${[metadata.make, metadata.model].filter(Boolean).join(' ')}`);
   }
   if (metadata.dateTime) {
     summary.push(`Date: ${new Date(metadata.dateTime).toLocaleDateString()}`);
   }
   if (metadata.gps) {
-    summary.push(
-      `GPS: ${metadata.gps.latitude.toFixed(
-        4
-      )}, ${metadata.gps.longitude.toFixed(4)}`
-    );
+    summary.push(`GPS: ${metadata.gps.latitude.toFixed(4)}, ${metadata.gps.longitude.toFixed(4)}`);
   }
   if (metadata.software) {
     summary.push(`Software: ${metadata.software}`);

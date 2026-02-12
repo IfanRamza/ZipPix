@@ -77,12 +77,7 @@ export async function validateFileSignature(file: File): Promise<boolean> {
 
   // Check AVIF (ftypavif at offset 4 usually)
   // 4-7: ftyp (66 74 79 70)
-  if (
-    bytes[4] === 0x66 &&
-    bytes[5] === 0x74 &&
-    bytes[6] === 0x79 &&
-    bytes[7] === 0x70
-  ) {
+  if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
     return true;
   }
 
@@ -94,39 +89,39 @@ export async function validateFileSignature(file: File): Promise<boolean> {
  */
 export function strictSanitizeFilename(filename: string): string {
   // 1. Remove any path directory components
-  let name = filename.replace(/^.*[\\/]/, "");
+  let name = filename.replace(/^.*[\\/]/, '');
 
   // 2. Decode URI components to catch encoded attacks (e.g. %2e%2e/)
   try {
     name = decodeURIComponent(name);
   } catch (e) {
     // Ignore invalid encoding
-    console.error("Invalid encoding", e);
+    console.error('Invalid encoding', e);
   }
 
   // 3. Remove null bytes and control characters
   // eslint-disable-next-line no-control-regex
-  name = name.replace(/[\x00-\x1f\x7f]/g, "");
+  name = name.replace(/[\x00-\x1f\x7f]/g, '');
 
   // 4. Remove potentially dangerous scripts/html tags
-  name = name.replace(/<[^>]*>/g, "");
+  name = name.replace(/<[^>]*>/g, '');
 
   // 5. Remove path traversal patterns
-  name = name.replace(/\.\./g, "");
+  name = name.replace(/\.\./g, '');
 
   // 6. Split extension
-  const lastDot = name.lastIndexOf(".");
-  const ext = lastDot > 0 ? name.slice(lastDot + 1).toLowerCase() : "";
+  const lastDot = name.lastIndexOf('.');
+  const ext = lastDot > 0 ? name.slice(lastDot + 1).toLowerCase() : '';
   const base = lastDot > 0 ? name.slice(0, lastDot) : name;
 
   // 7. Whitelist allowed characters for basename (alphanumeric, space, dash, underscore, dot)
   const safeBase = base
-    .replace(/[^a-zA-Z0-9 \-_.]/g, "_")
-    .replace(/\s+/g, " ")
+    .replace(/[^a-zA-Z0-9 \-_.]/g, '_')
+    .replace(/\s+/g, ' ')
     .trim();
 
   // 8. Limit length and ensure not empty
-  const finalBase = safeBase.slice(0, 50) || "untitled";
+  const finalBase = safeBase.slice(0, 50) || 'untitled';
 
   // 9. Prevent reserved filenames (Windows)
   if (/^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i.test(finalBase)) {

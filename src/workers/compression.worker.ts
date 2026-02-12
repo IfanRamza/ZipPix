@@ -1,8 +1,8 @@
-import type { CompressionSettings, EditState, SupportedFormat } from "@/types";
+import type { CompressionSettings, EditState, SupportedFormat } from '@/types';
 
 // Worker message types
 export interface CompressionRequest {
-  type: "COMPRESS";
+  type: 'COMPRESS';
   id: string;
   imageData: ArrayBuffer;
   fileName: string;
@@ -12,7 +12,7 @@ export interface CompressionRequest {
 }
 
 export interface CompressionResponse {
-  type: "SUCCESS" | "ERROR" | "PROGRESS";
+  type: 'SUCCESS' | 'ERROR' | 'PROGRESS';
   id: string;
   blob?: Blob;
   error?: string;
@@ -22,10 +22,10 @@ export interface CompressionResponse {
 // Get MIME type for format
 function getMimeType(format: SupportedFormat): string {
   const mimeTypes: Record<SupportedFormat, string> = {
-    jpeg: "image/jpeg",
-    png: "image/png",
-    webp: "image/webp",
-    avif: "image/avif",
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    avif: 'image/avif',
   };
   return mimeTypes[format];
 }
@@ -35,17 +35,10 @@ function applyEdits(
   ctx: OffscreenCanvasRenderingContext2D,
   bitmap: ImageBitmap,
   canvas: OffscreenCanvas,
-  editState: EditState
+  editState: EditState,
 ): { width: number; height: number } {
-  const {
-    crop,
-    rotation,
-    flipHorizontal,
-    flipVertical,
-    brightness,
-    contrast,
-    saturation,
-  } = editState;
+  const { crop, rotation, flipHorizontal, flipVertical, brightness, contrast, saturation } =
+    editState;
 
   // Determine source dimensions (after crop)
   const srcX = crop?.x ?? 0;
@@ -86,7 +79,7 @@ function applyEdits(
     -srcW / 2,
     -srcH / 2,
     srcW,
-    srcH // Destination rectangle
+    srcH, // Destination rectangle
   );
 
   ctx.restore();
@@ -137,7 +130,7 @@ function applyEdits(
 async function processImage(
   imageData: ArrayBuffer,
   settings: CompressionSettings,
-  editState?: EditState
+  editState?: EditState,
 ): Promise<Blob> {
   // Create blob from array buffer
   const blob = new Blob([imageData]);
@@ -172,33 +165,23 @@ async function processImage(
 
   // Create offscreen canvas
   const canvas = new OffscreenCanvas(width, height);
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
 
   if (!ctx) {
-    throw new Error("Failed to get canvas context");
+    throw new Error('Failed to get canvas context');
   }
 
   // Apply edits if any
   if (editState && hasEdits(editState)) {
     // First apply edits to get the edited source
     const editCanvas = new OffscreenCanvas(baseWidth, baseHeight);
-    const editCtx = editCanvas.getContext("2d");
-    if (!editCtx) throw new Error("Failed to get edit canvas context");
+    const editCtx = editCanvas.getContext('2d');
+    if (!editCtx) throw new Error('Failed to get edit canvas context');
 
     applyEdits(editCtx, bitmap, editCanvas, editState);
 
     // Then resize to final dimensions
-    ctx.drawImage(
-      editCanvas,
-      0,
-      0,
-      editCanvas.width,
-      editCanvas.height,
-      0,
-      0,
-      width,
-      height
-    );
+    ctx.drawImage(editCanvas, 0, 0, editCanvas.width, editCanvas.height, 0, 0, width, height);
   } else {
     // No edits, just resize
     ctx.drawImage(bitmap, 0, 0, width, height);
@@ -230,11 +213,11 @@ function hasEdits(editState: EditState): boolean {
 self.onmessage = async (event: MessageEvent<CompressionRequest>) => {
   const { type, id, imageData, settings, editState } = event.data;
 
-  if (type === "COMPRESS") {
+  if (type === 'COMPRESS') {
     try {
       // Send progress update
       self.postMessage({
-        type: "PROGRESS",
+        type: 'PROGRESS',
         id,
         progress: 10,
       } as CompressionResponse);
@@ -244,15 +227,15 @@ self.onmessage = async (event: MessageEvent<CompressionRequest>) => {
 
       // Send success response
       self.postMessage({
-        type: "SUCCESS",
+        type: 'SUCCESS',
         id,
         blob: result,
       } as CompressionResponse);
     } catch (error) {
       self.postMessage({
-        type: "ERROR",
+        type: 'ERROR',
         id,
-        error: error instanceof Error ? error.message : "Compression failed",
+        error: error instanceof Error ? error.message : 'Compression failed',
       } as CompressionResponse);
     }
   }

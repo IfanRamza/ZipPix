@@ -1,10 +1,10 @@
-import { useBatchStore } from "@/store/batchStore";
-import { useImageStore } from "@/store/imageStore";
-import type { CompressionSettings } from "@/types";
-import { useCallback, useEffect, useRef } from "react";
+import { useBatchStore } from '@/store/batchStore';
+import { useImageStore } from '@/store/imageStore';
+import type { CompressionSettings } from '@/types';
+import { useCallback, useEffect, useRef } from 'react';
 
 interface CompressionResponse {
-  type: "SUCCESS" | "ERROR" | "PROGRESS";
+  type: 'SUCCESS' | 'ERROR' | 'PROGRESS';
   id: string;
   blob?: Blob;
   error?: string;
@@ -32,10 +32,9 @@ export function useBatchProcessor() {
 
   // Initialize worker
   useEffect(() => {
-    workerRef.current = new Worker(
-      new URL("../workers/compression.worker.ts", import.meta.url),
-      { type: "module" }
-    );
+    workerRef.current = new Worker(new URL('../workers/compression.worker.ts', import.meta.url), {
+      type: 'module',
+    });
 
     return () => {
       workerRef.current?.terminate();
@@ -44,14 +43,10 @@ export function useBatchProcessor() {
 
   // Process single item
   const processItem = useCallback(
-    async (
-      itemId: string,
-      file: File,
-      compressionSettings: CompressionSettings
-    ) => {
+    async (itemId: string, file: File, compressionSettings: CompressionSettings) => {
       return new Promise<void>((resolve, reject) => {
         if (!workerRef.current) {
-          reject(new Error("Worker not initialized"));
+          reject(new Error('Worker not initialized'));
           return;
         }
 
@@ -59,40 +54,40 @@ export function useBatchProcessor() {
           const { type, blob, error, progress } = event.data;
 
           switch (type) {
-            case "PROGRESS":
-              updateItemStatus(itemId, "processing", {
+            case 'PROGRESS':
+              updateItemStatus(itemId, 'processing', {
                 progress: progress ?? 0,
               });
               break;
-            case "SUCCESS":
+            case 'SUCCESS':
               if (blob) {
-                updateItemStatus(itemId, "complete", {
+                updateItemStatus(itemId, 'complete', {
                   progress: 100,
                   compressedBlob: blob,
                   compressedSize: blob.size,
                 });
               }
-              workerRef.current?.removeEventListener("message", messageHandler);
+              workerRef.current?.removeEventListener('message', messageHandler);
               resolve();
               break;
-            case "ERROR":
-              updateItemStatus(itemId, "error", {
-                error: error || "Compression failed",
+            case 'ERROR':
+              updateItemStatus(itemId, 'error', {
+                error: error || 'Compression failed',
               });
-              workerRef.current?.removeEventListener("message", messageHandler);
+              workerRef.current?.removeEventListener('message', messageHandler);
               reject(new Error(error));
               break;
           }
         };
 
-        workerRef.current.addEventListener("message", messageHandler);
+        workerRef.current.addEventListener('message', messageHandler);
 
         // Start compression
-        updateItemStatus(itemId, "processing", { progress: 0 });
+        updateItemStatus(itemId, 'processing', { progress: 0 });
 
         file.arrayBuffer().then((arrayBuffer) => {
           workerRef.current?.postMessage({
-            type: "COMPRESS",
+            type: 'COMPRESS',
             id: itemId,
             imageData: arrayBuffer,
             fileName: file.name,
@@ -102,7 +97,7 @@ export function useBatchProcessor() {
         });
       });
     },
-    [updateItemStatus]
+    [updateItemStatus],
   );
 
   // Process queue
@@ -125,7 +120,7 @@ export function useBatchProcessor() {
         }
 
         const item = items[i];
-        if (item.status === "queued" || item.status === "error") {
+        if (item.status === 'queued' || item.status === 'error') {
           setCurrentIndex(i);
           try {
             await processItem(item.id, item.file, settings);
@@ -138,7 +133,7 @@ export function useBatchProcessor() {
       // Check if all done
       const finalState = useBatchStore.getState();
       const allDone = finalState.items.every(
-        (item) => item.status === "complete" || item.status === "error"
+        (item) => item.status === 'complete' || item.status === 'error',
       );
       if (allDone && finalState.isProcessing) {
         useBatchStore.setState({ isProcessing: false });

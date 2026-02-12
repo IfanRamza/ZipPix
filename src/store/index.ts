@@ -1,1 +1,1 @@
-export { useImageStore } from "./imageStore";
+export { useImageStore } from './imageStore';

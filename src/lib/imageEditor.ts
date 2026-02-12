@@ -32,7 +32,7 @@ export const DEFAULT_EDITOR_STATE: EditorState = {
  */
 export function applyTransformations(
   sourceImage: HTMLImageElement,
-  state: EditorState
+  state: EditorState,
 ): HTMLCanvasElement {
   // Calculate dimensions after rotation
   const isRotated90or270 = state.rotation === 90 || state.rotation === 270;
@@ -45,12 +45,12 @@ export function applyTransformations(
     height = state.crop.height;
   }
 
-  const canvas = document.createElement("canvas");
+  const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas context not available");
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context not available');
 
   // Save context state
   ctx.save();
@@ -83,7 +83,7 @@ export function applyTransformations(
       -width / 2,
       -height / 2,
       width,
-      height
+      height,
     );
   } else {
     ctx.drawImage(sourceImage, -drawWidth / 2, -drawHeight / 2);
@@ -93,11 +93,7 @@ export function applyTransformations(
   ctx.restore();
 
   // Apply filters if any are set
-  if (
-    state.brightness !== 0 ||
-    state.contrast !== 0 ||
-    state.saturation !== 0
-  ) {
+  if (state.brightness !== 0 || state.contrast !== 0 || state.saturation !== 0) {
     applyFilters(ctx, width, height, state);
   }
 
@@ -111,7 +107,7 @@ function applyFilters(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  state: EditorState
+  state: EditorState,
 ): void {
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
@@ -168,7 +164,7 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
 export function canvasToBlob(
   canvas: HTMLCanvasElement,
   mimeType: string,
-  quality: number
+  quality: number,
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -176,11 +172,11 @@ export function canvasToBlob(
         if (blob) {
           resolve(blob);
         } else {
-          reject(new Error("Failed to convert canvas to blob"));
+          reject(new Error('Failed to convert canvas to blob'));
         }
       },
       mimeType,
-      quality
+      quality,
     );
   });
 }

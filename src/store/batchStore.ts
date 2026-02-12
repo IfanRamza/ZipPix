@@ -1,6 +1,6 @@
-import { strictSanitizeFilename } from "@/lib/security";
-import type { BatchItem, BatchState } from "@/types";
-import { create } from "zustand";
+import { strictSanitizeFilename } from '@/lib/security';
+import type { BatchItem, BatchState } from '@/types';
+import { create } from 'zustand';
 
 const MAX_BATCH_SIZE = 20;
 
@@ -15,11 +15,7 @@ interface BatchStore extends BatchState {
   pauseProcessing: () => void;
   resumeProcessing: () => void;
   setCurrentIndex: (index: number) => void;
-  updateItemStatus: (
-    id: string,
-    status: BatchItem["status"],
-    data?: Partial<BatchItem>,
-  ) => void;
+  updateItemStatus: (id: string, status: BatchItem['status'], data?: Partial<BatchItem>) => void;
   reset: () => void;
 }
 
@@ -43,7 +39,7 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
     const rejected = files.length - filesToAdd.length;
 
     const newItems: BatchItem[] = filesToAdd.map((file) => {
-      const lastDot = file.name.lastIndexOf(".");
+      const lastDot = file.name.lastIndexOf('.');
       const baseName = lastDot > 0 ? file.name.slice(0, lastDot) : file.name;
       const sanitized = strictSanitizeFilename(baseName);
       return {
@@ -51,7 +47,7 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
         file,
         previewUrl: URL.createObjectURL(file),
         outputFilename: sanitized,
-        status: "queued" as const,
+        status: 'queued' as const,
         progress: 0,
       };
     });
@@ -88,9 +84,7 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
   // Update item dimensions
   updateItemDimensions: (id: string, width: number, height: number) => {
     set((state) => ({
-      items: state.items.map((item) =>
-        item.id === id ? { ...item, width, height } : item,
-      ),
+      items: state.items.map((item) => (item.id === id ? { ...item, width, height } : item)),
     }));
   },
 
@@ -132,15 +126,9 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
   },
 
   // Update item status
-  updateItemStatus: (
-    id: string,
-    status: BatchItem["status"],
-    data?: Partial<BatchItem>,
-  ) => {
+  updateItemStatus: (id: string, status: BatchItem['status'], data?: Partial<BatchItem>) => {
     set((state) => ({
-      items: state.items.map((item) =>
-        item.id === id ? { ...item, status, ...data } : item,
-      ),
+      items: state.items.map((item) => (item.id === id ? { ...item, status, ...data } : item)),
     }));
   },
 
@@ -168,10 +156,10 @@ export const useBatchStats = () => {
 
   return {
     total: items.length,
-    queued: items.filter((i) => i.status === "queued").length,
-    processing: items.filter((i) => i.status === "processing").length,
-    complete: items.filter((i) => i.status === "complete").length,
-    errors: items.filter((i) => i.status === "error").length,
+    queued: items.filter((i) => i.status === 'queued').length,
+    processing: items.filter((i) => i.status === 'processing').length,
+    complete: items.filter((i) => i.status === 'complete').length,
+    errors: items.filter((i) => i.status === 'error').length,
     canAddMore: items.length < MAX_BATCH_SIZE,
     remainingSlots: MAX_BATCH_SIZE - items.length,
     maxSize: MAX_BATCH_SIZE,

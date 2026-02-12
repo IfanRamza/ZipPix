@@ -1,7 +1,7 @@
-import type { ParsedMetadata } from "@/lib/metadataParser";
+import type { ParsedMetadata } from '@/lib/metadataParser';
 
-export type SupportedFormat = "jpeg" | "png" | "webp" | "avif";
-export type ChromaSubsampling = "4:4:4" | "4:2:2" | "4:2:0";
+export type SupportedFormat = 'jpeg' | 'png' | 'webp' | 'avif';
+export type ChromaSubsampling = '4:4:4' | '4:2:2' | '4:2:0';
 
 export interface CompressionSettings {
   format: SupportedFormat;
@@ -101,7 +101,7 @@ export interface BatchItem {
   file: File;
   previewUrl: string;
   outputFilename: string; // Editable output filename
-  status: "queued" | "processing" | "complete" | "error";
+  status: 'queued' | 'processing' | 'complete' | 'error';
   progress: number;
   width?: number; // Image width
   height?: number; // Image height

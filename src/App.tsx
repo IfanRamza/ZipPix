@@ -1,37 +1,37 @@
-import { PageLoading } from "@/components/LoadingSpinner";
-import { Suspense, lazy } from "react";
-import { Route, Routes } from "react-router-dom";
+import { PageLoading } from '@/components/LoadingSpinner';
+import { Suspense, lazy } from 'react';
+import { Route, Routes } from 'react-router-dom';
 
 // Lazy load page components
 const HomePage = lazy(() =>
-  import("./pages/HomePage").then((module) => ({
+  import('./pages/HomePage').then((module) => ({
     default: module.HomePage,
-  }))
+  })),
 );
 const BatchPage = lazy(() =>
-  import("./pages/BatchPage").then((module) => ({
+  import('./pages/BatchPage').then((module) => ({
     default: module.BatchPage,
-  }))
+  })),
 );
 const PrivacyPolicy = lazy(() =>
-  import("./pages/PrivacyPolicy").then((module) => ({
+  import('./pages/PrivacyPolicy').then((module) => ({
     default: module.PrivacyPolicy,
-  }))
+  })),
 );
 const TermsOfService = lazy(() =>
-  import("./pages/TermsOfService").then((module) => ({
+  import('./pages/TermsOfService').then((module) => ({
     default: module.TermsOfService,
-  }))
+  })),
 );
 
 const App = () => {
   return (
     <Suspense fallback={<PageLoading />}>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/batch" element={<BatchPage />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/terms" element={<TermsOfService />} />
+        <Route path='/' element={<HomePage />} />
+        <Route path='/batch' element={<BatchPage />} />
+        <Route path='/privacy' element={<PrivacyPolicy />} />
+        <Route path='/terms' element={<TermsOfService />} />
       </Routes>
     </Suspense>
   );

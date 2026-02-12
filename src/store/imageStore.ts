@@ -1,21 +1,21 @@
-import { getImageDimensions } from "@/lib/imageProcessor";
-import { parseMetadata } from "@/lib/metadataParser";
+import { getImageDimensions } from '@/lib/imageProcessor';
+import { parseMetadata } from '@/lib/metadataParser';
 import {
   type AppState,
   type CompressionSettings,
   DEFAULT_EDIT_STATE,
   type EditState,
-} from "@/types";
-import { create } from "zustand";
+} from '@/types';
+import { create } from 'zustand';
 
 const DEFAULT_SETTINGS: CompressionSettings = {
-  format: "webp",
+  format: 'webp',
   quality: 85,
   maintainAspectRatio: true,
   stripMetadata: true,
   effort: 4,
   progressive: true,
-  chromaSubsampling: "4:2:0",
+  chromaSubsampling: '4:2:0',
 };
 
 export const useImageStore = create<AppState>((set, get) => ({
