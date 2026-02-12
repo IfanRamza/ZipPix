@@ -13,7 +13,9 @@
     "format": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "format:fix": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "fix": "bun run lint:fix && bun run format:fix",
-    "test": "bun test"
+    "test": "bun test test/",
+    "test:unit": "bun test test/",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
