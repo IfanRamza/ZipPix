@@ -205,7 +205,8 @@ function hasEdits(editState: EditState): boolean {
     editState.flipVertical ||
     editState.brightness !== 0 ||
     editState.contrast !== 0 ||
-    editState.saturation !== 0
+    editState.saturation !== 0 ||
+    editState.removeBackground
   );
 }
 

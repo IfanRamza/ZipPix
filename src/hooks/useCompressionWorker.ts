@@ -1,3 +1,4 @@
+import { removeImageBackground } from '@/lib/backgroundRemover';
 import { useImageStore } from '@/store/imageStore';
 import type { CompressionSettings, EditState } from '@/types';
 import { useCallback, useEffect, useRef } from 'react';
@@ -11,11 +12,13 @@ interface CompressionResponse {
 }
 
 /**
- * Hook for using compression worker with non-destructive edit support
+ * Hook for using compression worker with non-destructive edit support.
+ * Background removal runs on the main thread (ONNX/WASM requirement),
+ * then the result is passed to the compression worker for final processing.
  */
 export function useCompressionWorker() {
   const workerRef = useRef<Worker | null>(null);
-  const { setCompressedImage, setError, setProcessing } = useImageStore();
+  const { setCompressedImage, setError, setProcessing, setRemovingBackground } = useImageStore();
 
   // Initialize worker
   useEffect(() => {
@@ -61,22 +64,38 @@ export function useCompressionWorker() {
       setProcessing(true);
 
       try {
-        const arrayBuffer = await file.arrayBuffer();
+        let imageData: ArrayBuffer;
+
+        // If background removal is requested, run it on main thread first
+        if (editState?.removeBackground) {
+          setRemovingBackground(true);
+          const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+          const bgRemovedBlob = await removeImageBackground(blob);
+          imageData = await bgRemovedBlob.arrayBuffer();
+          setRemovingBackground(false);
+        } else {
+          imageData = await file.arrayBuffer();
+        }
+
+        // Pass the edit state to the worker, but clear removeBackground
+        // since it's already been applied on the main thread
+        const workerEditState = editState ? { ...editState, removeBackground: false } : undefined;
 
         workerRef.current.postMessage({
           type: 'COMPRESS',
           id: Date.now().toString(),
-          imageData: arrayBuffer,
+          imageData,
           fileName: file.name,
           fileType: file.type,
           settings,
-          editState, // Pass edit state to worker
+          editState: workerEditState,
         });
       } catch (error) {
-        setError(error instanceof Error ? error.message : 'Failed to read file');
+        setRemovingBackground(false);
+        setError(error instanceof Error ? error.message : 'Failed to process image');
       }
     },
-    [setError, setProcessing],
+    [setError, setProcessing, setRemovingBackground],
   );
 
   return { compress };

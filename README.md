@@ -1,10 +1,10 @@
 # ZipPix - Privacy-First Image Compression PWA
 
 <p align="center">
-  <img src="public/icon_512.png" alt="ZipPix Logo" width="128" height="128">
+  <img src="public/icon.webp" alt="ZipPix Logo" width="128" height="128">
 </p>
 
-ZipPix is a modern, privacy-focused image compression and editing tool built with React, TypeScript, and Vite. It runs entirely in your browser using Web Workers, ensuring that **your images never leave your device**.
+ZipPix is a modern, privacy-focused image compression and editing tool built with React, TypeScript, and Vite. It runs entirely in your browser using Web Workers and client-side AI, ensuring that **your images never leave your device**.
 
 ## ✨ Features
 
@@ -22,6 +22,7 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 - **✂️ Crop** - Freeform and aspect ratio presets (1:1, 16:9, 4:5, etc.)
 - **🔄 Rotate & Flip** - 90° rotation and horizontal/vertical flip
 - **🎨 Filters** - Brightness, contrast, and saturation adjustments
+- **🧹 Background Removal** - Client-side AI-powered background removal using ONNX runtime (no server needed)
 - **↩️ Reset to Original** - Instantly revert all edits
 
 ### Batch Processing
@@ -31,6 +32,15 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 - **📥 ZIP Download** - Download all compressed images as a single ZIP file
 - **📊 Progress Tracking** - Per-image status and format conversion display
 
+### Security
+
+- **🛡️ Content Security Policy** - Strict CSP with `object-src 'none'`, `form-action 'none'`, and `base-uri 'self'`
+- **🔐 Security Headers** - Full HTTP security headers in production (HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
+- **🧬 Magic Byte Validation** - File signatures are verified against expected formats to prevent extension spoofing
+- **📛 Filename Sanitization** - Path traversal, XSS vectors, null bytes, and reserved filenames are all neutralized
+- **🔑 Extension Whitelist** - Only known image extensions are allowed in output filenames
+- **📵 Permissions Policy** - Camera, microphone, geolocation, and payment APIs are disabled
+
 ### PWA & Offline
 
 - **📱 Installable** - Works as a standalone app on desktop and mobile
@@ -38,18 +48,19 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 
 ## 🛠️ Tech Stack
 
-| Category         | Technology                      |
-| ---------------- | ------------------------------- |
-| Framework        | React 19 + TypeScript           |
-| Build Tool       | Vite                            |
-| Styling          | Tailwind CSS v4                 |
-| UI Components    | Shadcn UI (Radix Primitives)    |
-| State Management | Zustand                         |
-| Image Processing | Canvas API + Pica + Web Workers |
-| Cropping         | react-image-crop                |
-| ZIP Generation   | JSZip                           |
-| Icons            | Lucide React                    |
-| Routing          | React Router DOM (HashRouter)   |
+| Category           | Technology                            |
+| ------------------ | ------------------------------------- |
+| Framework          | React 19 + TypeScript                 |
+| Build Tool         | Vite                                  |
+| Styling            | Tailwind CSS v4                       |
+| UI Components      | Shadcn UI (Radix Primitives)          |
+| State Management   | Zustand                               |
+| Image Processing   | Canvas API + Pica + Web Workers       |
+| Background Removal | @imgly/background-removal (ONNX/WASM) |
+| Cropping           | react-image-crop                      |
+| ZIP Generation     | JSZip                                 |
+| Icons              | Lucide React                          |
+| Routing            | React Router DOM                      |
 
 ## 🚀 Getting Started
 
@@ -83,6 +94,15 @@ bun run preview # Preview the production build
 
 The output will be in the `dist/` directory.
 
+### Docker
+
+```bash
+docker build -t zippix .
+docker run -p 4001:4001 zippix
+```
+
+The production server runs on port 4001 with full security headers and path traversal protection.
+
 ## 🧪 Running Tests
 
 ```bash
@@ -97,11 +117,11 @@ npx playwright test
 
 ```
 src/
-├── components/     # UI components (Navbar, ControlPanel, etc.)
-├── hooks/          # Custom React hooks
-├── lib/            # Utilities (imageProcessor, metadataParser)
-├── pages/          # Route pages (HomePage, BatchPage)
-├── store/          # Zustand state management
+├── components/     # UI components (Navbar, ControlPanel, ImageEditor, etc.)
+├── hooks/          # Custom React hooks (useCompressionWorker, useBatchProcessor)
+├── lib/            # Utilities (imageProcessor, metadataParser, security, backgroundRemover)
+├── pages/          # Route pages (HomePage, BatchPage, PrivacyPolicy, TermsOfService)
+├── store/          # Zustand state management (imageStore, batchStore)
 ├── workers/        # Web Workers for compression
 └── types/          # TypeScript type definitions
 ```
@@ -114,9 +134,12 @@ src/
 - [x] Format conversion (WebP, AVIF, PNG, JPEG)
 - [x] Image editing (crop, rotate, flip, filters)
 - [x] Non-destructive editing
+- [x] AI-powered background removal (client-side)
 - [x] Batch processing (up to 20 images)
 - [x] Metadata viewer & stripping
+- [x] Security hardening (CSP, headers, file validation, filename sanitization)
 - [x] PWA with offline support
+- [x] Docker deployment
 
 ### 🔮 Future Enhancements
 
@@ -138,7 +161,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 🔒 Privacy Policy
 
-ZipPix does not collect, store, or transmit any image data. All processing is performed locally on your device within your browser's sandbox.
+ZipPix does not collect, store, or transmit any image data. All processing — including AI background removal — is performed locally on your device within your browser's sandbox.
 
 ---
 
