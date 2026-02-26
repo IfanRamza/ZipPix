@@ -16,12 +16,12 @@ const SECURITY_HEADERS: Record<string, string> = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
   'Content-Security-Policy':
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://staticimgly.com; " +
+    "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob: https://staticimgly.com https://static.cloudflareinsights.com; " +
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' blob: data:; " +
     "worker-src 'self' blob:; " +
-    "connect-src 'self' blob: https://staticimgly.com; " +
+    "connect-src 'self' blob: https://staticimgly.com https://cloudflareinsights.com; " +
     "object-src 'none'; " +
     "base-uri 'self'; " +
     "form-action 'none';",
