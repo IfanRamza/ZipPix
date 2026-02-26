@@ -10,6 +10,7 @@ import { Navbar } from '@/components/Navbar';
 import { StatsDisplay } from '@/components/StatsDisplay';
 import { Button } from '@/components/ui/button';
 import { useCompressionWorker } from '@/hooks/useCompressionWorker';
+import { preloadBackgroundRemovalModel } from '@/lib/backgroundRemover';
 import { useImageStore } from '@/store/imageStore';
 import { Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -47,6 +48,8 @@ export function HomePage() {
   const handleUpload = useCallback(
     async (file: File) => {
       await setOriginalImage(file);
+      // Start downloading the BG removal model in the background
+      preloadBackgroundRemovalModel();
     },
     [setOriginalImage],
   );
@@ -95,6 +98,9 @@ export function HomePage() {
     }
     if (editState.brightness !== 0 || editState.contrast !== 0 || editState.saturation !== 0) {
       indicators.push('Filters applied');
+    }
+    if (editState.removeBackground) {
+      indicators.push('Background removed');
     }
     return indicators;
   };
@@ -209,6 +215,7 @@ export function HomePage() {
                 compressedUrl={compressedUrl}
                 position={sliderPosition}
                 onPositionChange={setSliderPosition}
+                isRemovingBackground={status.isRemovingBackground}
               />
               <MetadataViewer
                 metadata={originalImage.metadata ?? null}
@@ -234,6 +241,7 @@ export function HomePage() {
                 <ActionButtons
                   onDownload={handleDownload}
                   isProcessing={status.isCompressing}
+                  isRemovingBackground={status.isRemovingBackground}
                   canDownload={!!compressedUrl}
                 />
               </div>

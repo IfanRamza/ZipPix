@@ -9,6 +9,7 @@ import {
   Check,
   Contrast,
   Crop,
+  Eraser,
   FlipHorizontal,
   FlipVertical,
   Palette,
@@ -141,7 +142,8 @@ function hasAnyEdits(editState: EditState): boolean {
     editState.flipVertical ||
     editState.brightness !== 0 ||
     editState.contrast !== 0 ||
-    editState.saturation !== 0
+    editState.saturation !== 0 ||
+    editState.removeBackground
   );
 }
 
@@ -225,17 +227,11 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
   // Initialize crop when entering crop mode
   const handleEnterCropMode = () => {
     setIsCropMode(true);
-    if (imgRef.current && aspect) {
-      const { width, height } = imgRef.current;
-      const newCrop = centerCrop(
-        makeAspectCrop({ unit: '%', width: 80 }, aspect, width, height),
-        width,
-        height,
-      );
-      setCrop(newCrop);
-    } else {
-      setCrop({ unit: '%', x: 10, y: 10, width: 80, height: 80 });
-    }
+    // Use percentage-based crop so it works regardless of image dimensions.
+    // completedCrop (pixel-based) will be set in the crop image's onLoad.
+    const percentCrop: CropType = { unit: '%', x: 10, y: 10, width: 80, height: 80 };
+    setCrop(percentCrop);
+    setCompletedCrop(undefined);
   };
 
   // Apply crop to local state
@@ -265,11 +261,12 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
     if (imgRef.current && newAspect) {
       const { width, height } = imgRef.current;
       const newCrop = centerCrop(
-        makeAspectCrop({ unit: '%', width: 80 }, newAspect, width, height),
+        makeAspectCrop({ unit: 'px', width: width * 0.8 }, newAspect, width, height),
         width,
         height,
       );
       setCrop(newCrop);
+      setCompletedCrop(newCrop);
     }
   };
 
@@ -371,6 +368,17 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
                       width: img.naturalWidth,
                       height: img.naturalHeight,
                     });
+                    // Initialize completedCrop with pixel values from the correct image
+                    if (crop && crop.unit === '%') {
+                      const pxCrop: CropType = {
+                        unit: 'px',
+                        x: (crop.x / 100) * img.width,
+                        y: (crop.y / 100) * img.height,
+                        width: (crop.width / 100) * img.width,
+                        height: (crop.height / 100) * img.height,
+                      };
+                      setCompletedCrop(pxCrop);
+                    }
                   }}
                 />
               </ReactCrop>
@@ -511,147 +519,185 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
             </>
           ) : (
             <>
-              {/* Crop Button */}
-              <Card className='bg-background/40 border-border/50'>
-                <CardContent className='p-4'>
-                  <Button
-                    variant='outline'
-                    className='w-full cursor-pointer'
-                    onClick={handleEnterCropMode}
-                  >
-                    <Crop className='mr-2 h-4 w-4' />
-                    Crop Image
-                  </Button>
-                  {localState.crop && (
-                    <p className='mt-2 text-center text-xs text-green-400'>
-                      ✓ Crop: {localState.crop.width}×{localState.crop.height} px
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Transform Controls */}
-              <Card className='bg-background/40 border-border/50'>
-                <CardContent className='space-y-4 p-4'>
-                  <Label className='text-sm font-medium'>Transform</Label>
-
-                  <div className='flex gap-2'>
+              <Card className='bg-background/40 border-border/50 flex h-full flex-col'>
+                <CardContent className='flex-1 space-y-5 overflow-y-auto p-4'>
+                  {/* Crop */}
+                  <div className='space-y-2'>
+                    <Label className='text-sm font-medium'>Crop</Label>
                     <Button
                       variant='outline'
-                      size='sm'
-                      onClick={() => handleRotate('ccw')}
-                      className='flex-1 cursor-pointer'
+                      className='w-full cursor-pointer'
+                      onClick={handleEnterCropMode}
                     >
-                      <RotateCcw className='mr-1 h-4 w-4' />
-                      Left
+                      <Crop className='mr-2 h-4 w-4' />
+                      Crop Image
                     </Button>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() => handleRotate('cw')}
-                      className='flex-1 cursor-pointer'
-                    >
-                      <RotateCw className='mr-1 h-4 w-4' />
-                      Right
-                    </Button>
+                    {localState.crop && (
+                      <p className='text-center text-xs text-green-400'>
+                        ✓ Crop: {localState.crop.width}×{localState.crop.height} px
+                      </p>
+                    )}
                   </div>
 
-                  <div className='flex gap-2'>
+                  <div className='border-border/30 border-t' />
+
+                  {/* Remove Background */}
+                  <div className='space-y-2'>
+                    <Label className='text-sm font-medium'>Background</Label>
                     <Button
-                      variant={localState.flipHorizontal ? 'default' : 'outline'}
-                      size='sm'
-                      onClick={() => handleFlip('horizontal')}
-                      className='flex-1 cursor-pointer'
+                      variant={localState.removeBackground ? 'default' : 'outline'}
+                      className={`w-full cursor-pointer ${
+                        localState.removeBackground
+                          ? 'bg-violet-600 text-white hover:bg-violet-700'
+                          : ''
+                      }`}
+                      onClick={() =>
+                        setLocalState((prev) => ({
+                          ...prev,
+                          removeBackground: !prev.removeBackground,
+                        }))
+                      }
                     >
-                      <FlipHorizontal className='mr-1 h-4 w-4' />
-                      Flip H
+                      <Eraser className='mr-2 h-4 w-4' />
+                      {localState.removeBackground ? 'BG Removal On' : 'Remove Background'}
                     </Button>
-                    <Button
-                      variant={localState.flipVertical ? 'default' : 'outline'}
-                      size='sm'
-                      onClick={() => handleFlip('vertical')}
-                      className='flex-1 cursor-pointer'
-                    >
-                      <FlipVertical className='mr-1 h-4 w-4' />
-                      Flip V
-                    </Button>
+                    {localState.removeBackground && (
+                      <p className='text-center text-xs text-violet-400'>
+                        ✓ Background will be removed (AI-powered)
+                      </p>
+                    )}
+                  </div>
+
+                  <div className='border-border/30 border-t' />
+
+                  {/* Transform */}
+                  <div className='space-y-3'>
+                    <Label className='text-sm font-medium'>Transform</Label>
+
+                    <div className='flex gap-2'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => handleRotate('ccw')}
+                        className='flex-1 cursor-pointer'
+                      >
+                        <RotateCcw className='mr-1 h-4 w-4' />
+                        Left
+                      </Button>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => handleRotate('cw')}
+                        className='flex-1 cursor-pointer'
+                      >
+                        <RotateCw className='mr-1 h-4 w-4' />
+                        Right
+                      </Button>
+                    </div>
+
+                    <div className='flex gap-2'>
+                      <Button
+                        variant={localState.flipHorizontal ? 'default' : 'outline'}
+                        size='sm'
+                        onClick={() => handleFlip('horizontal')}
+                        className='flex-1 cursor-pointer'
+                      >
+                        <FlipHorizontal className='mr-1 h-4 w-4' />
+                        Flip H
+                      </Button>
+                      <Button
+                        variant={localState.flipVertical ? 'default' : 'outline'}
+                        size='sm'
+                        onClick={() => handleFlip('vertical')}
+                        className='flex-1 cursor-pointer'
+                      >
+                        <FlipVertical className='mr-1 h-4 w-4' />
+                        Flip V
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className='border-border/30 border-t' />
+
+                  {/* Adjustments */}
+                  <div className='space-y-4'>
+                    <Label className='text-sm font-medium'>Adjustments</Label>
+
+                    {/* Brightness */}
+                    <div className='space-y-2'>
+                      <div className='flex items-center justify-between text-xs'>
+                        <span className='flex items-center gap-1'>
+                          <Sun className='h-3 w-3' /> Brightness
+                        </span>
+                        <span className='text-muted-foreground font-mono'>
+                          {localState.brightness > 0 ? '+' : ''}
+                          {localState.brightness}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[localState.brightness]}
+                        onValueChange={([v]) =>
+                          setLocalState((prev) => ({ ...prev, brightness: v }))
+                        }
+                        min={-100}
+                        max={100}
+                        step={1}
+                      />
+                    </div>
+
+                    {/* Contrast */}
+                    <div className='space-y-2'>
+                      <div className='flex items-center justify-between text-xs'>
+                        <span className='flex items-center gap-1'>
+                          <Contrast className='h-3 w-3' /> Contrast
+                        </span>
+                        <span className='text-muted-foreground font-mono'>
+                          {localState.contrast > 0 ? '+' : ''}
+                          {localState.contrast}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[localState.contrast]}
+                        onValueChange={([v]) => setLocalState((prev) => ({ ...prev, contrast: v }))}
+                        min={-100}
+                        max={100}
+                        step={1}
+                      />
+                    </div>
+
+                    {/* Saturation */}
+                    <div className='space-y-2'>
+                      <div className='flex items-center justify-between text-xs'>
+                        <span className='flex items-center gap-1'>
+                          <Palette className='h-3 w-3' /> Saturation
+                        </span>
+                        <span className='text-muted-foreground font-mono'>
+                          {localState.saturation > 0 ? '+' : ''}
+                          {localState.saturation}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[localState.saturation]}
+                        onValueChange={([v]) =>
+                          setLocalState((prev) => ({ ...prev, saturation: v }))
+                        }
+                        min={-100}
+                        max={100}
+                        step={1}
+                      />
+                    </div>
                   </div>
                 </CardContent>
+
+                {/* Status Info */}
+                <div className='border-border/30 border-t p-4'>
+                  <p className='text-muted-foreground text-center text-xs'>
+                    Rotation: {localState.rotation}° | Flip: {localState.flipHorizontal ? 'H' : ''}
+                    {localState.flipVertical ? 'V' : ''}
+                    {!localState.flipHorizontal && !localState.flipVertical ? 'None' : ''}
+                  </p>
+                </div>
               </Card>
-
-              {/* Filter Controls */}
-              <Card className='bg-background/40 border-border/50'>
-                <CardContent className='space-y-5 p-4'>
-                  <Label className='text-sm font-medium'>Adjustments</Label>
-
-                  {/* Brightness */}
-                  <div className='space-y-2'>
-                    <div className='flex items-center justify-between text-xs'>
-                      <span className='flex items-center gap-1'>
-                        <Sun className='h-3 w-3' /> Brightness
-                      </span>
-                      <span className='text-muted-foreground font-mono'>
-                        {localState.brightness > 0 ? '+' : ''}
-                        {localState.brightness}
-                      </span>
-                    </div>
-                    <Slider
-                      value={[localState.brightness]}
-                      onValueChange={([v]) => setLocalState((prev) => ({ ...prev, brightness: v }))}
-                      min={-100}
-                      max={100}
-                      step={1}
-                    />
-                  </div>
-
-                  {/* Contrast */}
-                  <div className='space-y-2'>
-                    <div className='flex items-center justify-between text-xs'>
-                      <span className='flex items-center gap-1'>
-                        <Contrast className='h-3 w-3' /> Contrast
-                      </span>
-                      <span className='text-muted-foreground font-mono'>
-                        {localState.contrast > 0 ? '+' : ''}
-                        {localState.contrast}
-                      </span>
-                    </div>
-                    <Slider
-                      value={[localState.contrast]}
-                      onValueChange={([v]) => setLocalState((prev) => ({ ...prev, contrast: v }))}
-                      min={-100}
-                      max={100}
-                      step={1}
-                    />
-                  </div>
-
-                  {/* Saturation */}
-                  <div className='space-y-2'>
-                    <div className='flex items-center justify-between text-xs'>
-                      <span className='flex items-center gap-1'>
-                        <Palette className='h-3 w-3' /> Saturation
-                      </span>
-                      <span className='text-muted-foreground font-mono'>
-                        {localState.saturation > 0 ? '+' : ''}
-                        {localState.saturation}
-                      </span>
-                    </div>
-                    <Slider
-                      value={[localState.saturation]}
-                      onValueChange={([v]) => setLocalState((prev) => ({ ...prev, saturation: v }))}
-                      min={-100}
-                      max={100}
-                      step={1}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Status Info */}
-              <p className='text-muted-foreground text-center text-xs'>
-                Rotation: {localState.rotation}° | Flip: {localState.flipHorizontal ? 'H' : ''}
-                {localState.flipVertical ? 'V' : ''}
-                {!localState.flipHorizontal && !localState.flipVertical ? 'None' : ''}
-              </p>
             </>
           )}
         </div>

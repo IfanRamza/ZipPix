@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useImageStore } from '@/store/imageStore';
 import type { EditState } from '@/types';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface ComparisonSliderProps {
@@ -10,6 +10,7 @@ interface ComparisonSliderProps {
   compressedUrl: string | null;
   position?: number;
   onPositionChange?: (position: number) => void;
+  isRemovingBackground?: boolean;
 }
 
 // Generate preview URL from canvas with all edits applied
@@ -121,6 +122,7 @@ export function ComparisonSlider({
   compressedUrl,
   position = 50,
   onPositionChange,
+  isRemovingBackground = false,
 }: ComparisonSliderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
@@ -258,6 +260,14 @@ export function ComparisonSlider({
         <Badge className='bg-background/80 pointer-events-none absolute top-4 right-4 z-20 rounded-sm shadow-sm backdrop-blur'>
           Compressed
         </Badge>
+
+        {/* BG Removal Overlay */}
+        {isRemovingBackground && (
+          <div className='absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/60 backdrop-blur-sm'>
+            <Loader2 className='h-8 w-8 animate-spin text-violet-400' />
+            <span className='text-sm font-medium text-violet-300'>Removing background...</span>
+          </div>
+        )}
       </div>
     </Card>
   );

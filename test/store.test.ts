@@ -84,4 +84,22 @@ describe('imageStore', () => {
     expect(state.settings.format).toBe('webp');
     expect(state.sliderPosition).toBe(50);
   });
+
+  test('hasEdits returns true when removeBackground is enabled', () => {
+    const store = useImageStore.getState();
+    expect(store.hasEdits()).toBe(false);
+
+    store.updateEditState({ removeBackground: true });
+    expect(useImageStore.getState().hasEdits()).toBe(true);
+  });
+
+  test('resetEdits clears removeBackground', () => {
+    const store = useImageStore.getState();
+    store.updateEditState({ removeBackground: true });
+    expect(useImageStore.getState().editState.removeBackground).toBe(true);
+
+    store.resetEdits();
+    expect(useImageStore.getState().editState.removeBackground).toBe(false);
+    expect(useImageStore.getState().hasEdits()).toBe(false);
+  });
 });

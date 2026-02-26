@@ -37,6 +37,7 @@ export interface EditState {
   brightness: number; // -100 to 100
   contrast: number; // -100 to 100
   saturation: number; // -100 to 100
+  removeBackground: boolean;
 }
 
 export const DEFAULT_EDIT_STATE: EditState = {
@@ -47,6 +48,7 @@ export const DEFAULT_EDIT_STATE: EditState = {
   brightness: 0,
   contrast: 0,
   saturation: 0,
+  removeBackground: false,
 };
 
 export interface ImageFileState {
@@ -59,6 +61,7 @@ export interface ImageFileState {
 
 export interface ProcessingStatus {
   isCompressing: boolean;
+  isRemovingBackground: boolean;
   progress: number;
   error?: string;
 }
@@ -88,6 +91,7 @@ export interface AppState {
   setSliderPosition: (pos: number) => void;
   setError: (error: string | undefined) => void;
   setProcessing: (isProcessing: boolean) => void;
+  setRemovingBackground: (isRemoving: boolean) => void;
 
   // Edit actions
   updateEditState: (edits: Partial<EditState>) => void;

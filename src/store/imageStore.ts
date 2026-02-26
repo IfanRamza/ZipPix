@@ -28,6 +28,7 @@ export const useImageStore = create<AppState>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   status: {
     isCompressing: false,
+    isRemovingBackground: false,
     progress: 0,
     error: undefined,
   },
@@ -66,7 +67,7 @@ export const useImageStore = create<AppState>((set, get) => ({
       compressedImage: null,
       compressedSize: 0,
       compressedUrl: null,
-      status: { isCompressing: false, progress: 0, error: undefined },
+      status: { isCompressing: false, isRemovingBackground: false, progress: 0, error: undefined },
       sliderPosition: 50,
     });
   },
@@ -90,7 +91,12 @@ export const useImageStore = create<AppState>((set, get) => ({
       compressedImage: blob,
       compressedSize: blob.size,
       compressedUrl,
-      status: { isCompressing: false, progress: 100, error: undefined },
+      status: {
+        isCompressing: false,
+        isRemovingBackground: false,
+        progress: 100,
+        error: undefined,
+      },
     });
   },
 
@@ -111,7 +117,7 @@ export const useImageStore = create<AppState>((set, get) => ({
       compressedSize: 0,
       compressedUrl: null,
       settings: DEFAULT_SETTINGS,
-      status: { isCompressing: false, progress: 0, error: undefined },
+      status: { isCompressing: false, isRemovingBackground: false, progress: 0, error: undefined },
       sliderPosition: 50,
     });
   },
@@ -129,6 +135,12 @@ export const useImageStore = create<AppState>((set, get) => ({
   setProcessing: (isCompressing: boolean) => {
     set((state) => ({
       status: { ...state.status, isCompressing },
+    }));
+  },
+
+  setRemovingBackground: (isRemovingBackground: boolean) => {
+    set((state) => ({
+      status: { ...state.status, isRemovingBackground },
     }));
   },
 
@@ -152,7 +164,8 @@ export const useImageStore = create<AppState>((set, get) => ({
       editState.flipVertical ||
       editState.brightness !== 0 ||
       editState.contrast !== 0 ||
-      editState.saturation !== 0
+      editState.saturation !== 0 ||
+      editState.removeBackground
     );
   },
 }));
