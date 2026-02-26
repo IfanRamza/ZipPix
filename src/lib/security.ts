@@ -75,10 +75,14 @@ export async function validateFileSignature(file: File): Promise<boolean> {
     return true;
   }
 
-  // Check AVIF (ftypavif at offset 4 usually)
+  // Check AVIF (ISO BMFF container with AVIF brand)
   // 4-7: ftyp (66 74 79 70)
+  // 8-11: brand — must be 'avif', 'avis', or 'mif1'
   if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
-    return true;
+    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+    if (brand === 'avif' || brand === 'avis' || brand === 'mif1') {
+      return true;
+    }
   }
 
   return false;
@@ -109,9 +113,11 @@ export function strictSanitizeFilename(filename: string): string {
   // 5. Remove path traversal patterns
   name = name.replace(/\.\./g, '');
 
-  // 6. Split extension
+  // 6. Split extension and whitelist it
+  const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'zip']);
   const lastDot = name.lastIndexOf('.');
-  const ext = lastDot > 0 ? name.slice(lastDot + 1).toLowerCase() : '';
+  const rawExt = lastDot > 0 ? name.slice(lastDot + 1).toLowerCase() : '';
+  const ext = ALLOWED_EXTENSIONS.has(rawExt) ? rawExt : rawExt ? 'bin' : '';
   const base = lastDot > 0 ? name.slice(0, lastDot) : name;
 
   // 7. Whitelist allowed characters for basename (alphanumeric, space, dash, underscore, dot)

@@ -4,7 +4,7 @@ import { strictSanitizeFilename, validateFileSignature } from '../src/lib/securi
 describe('strictSanitizeFilename', () => {
   test('prevents path traversal', () => {
     expect(strictSanitizeFilename('../../etc/passwd')).toBe('passwd');
-    expect(strictSanitizeFilename('..\\..\\windows\\system32\\cmd.exe')).toBe('cmd.exe');
+    expect(strictSanitizeFilename('..\\..\\windows\\system32\\cmd.exe')).toBe('cmd.bin');
   });
 
   test('prevents XSS vectors', () => {
@@ -22,7 +22,7 @@ describe('strictSanitizeFilename', () => {
   });
 
   test('handles URL encoded attacks', () => {
-    expect(strictSanitizeFilename('%2e%2e/secret.txt')).toBe('secret.txt');
+    expect(strictSanitizeFilename('%2e%2e/secret.txt')).toBe('secret.bin');
   });
 
   test('enforces length limit', () => {

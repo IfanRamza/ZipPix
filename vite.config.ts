@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['icon.svg', 'icon.webp'],
       manifest: {
         name: 'ZipPix - Image Compression',
         short_name: 'ZipPix',
@@ -25,19 +25,14 @@ export default defineConfig({
         categories: ['utilities', 'productivity', 'photos'],
         icons: [
           {
-            src: '/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
+            src: '/icon.webp',
+            sizes: '512x512',
+            type: 'image/webp',
           },
           {
-            src: '/icon-512.png',
+            src: '/icon.webp',
             sizes: '512x512',
-            type: 'image/png',
-          },
-          {
-            src: '/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
+            type: 'image/webp',
             purpose: 'maskable',
           },
           {
@@ -48,7 +43,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,webp,woff2}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

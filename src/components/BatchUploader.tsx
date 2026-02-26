@@ -118,7 +118,7 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
           type='file'
           ref={fileInputRef}
           className='hidden'
-          accept='image/*'
+          accept='image/jpeg,image/png,image/webp,image/avif,image/gif'
           multiple
           onChange={(e) => handleFiles(e.target.files)}
         />
@@ -181,7 +181,7 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
           type='file'
           ref={fileInputRef}
           className='hidden'
-          accept='image/*'
+          accept='image/jpeg,image/png,image/webp,image/avif,image/gif'
           multiple
           onChange={(e) => handleFiles(e.target.files)}
         />
