@@ -10,7 +10,7 @@ import { create } from 'zustand';
 
 const DEFAULT_SETTINGS: CompressionSettings = {
   format: 'webp',
-  quality: 85,
+  quality: 80,
   maintainAspectRatio: true,
   stripMetadata: true,
   effort: 4,

@@ -282,9 +282,9 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
   };
 
   return (
-    <div className='fixed inset-0 z-50 flex flex-col bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14]'>
+    <div className='fixed inset-0 z-50 flex flex-col overflow-hidden bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14]'>
       {/* Header */}
-      <div className='border-border/50 bg-background/40 flex items-center justify-between border-b p-4 backdrop-blur-xl'>
+      <div className='border-border/50 bg-background/40 flex items-center justify-between border-b px-3 py-2 backdrop-blur-xl md:p-4'>
         <h2 className='text-lg font-semibold'>
           {isCropMode ? 'Crop Image' : 'Edit Image'}
           {isGeneratingPreview && (
@@ -341,27 +341,24 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
       </div>
 
       {/* Main Content */}
-      <div className='flex flex-1 overflow-hidden'>
+      <div className='flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row'>
         {/* Preview */}
-        <div className='flex flex-1 items-center justify-center overflow-hidden p-8'>
+        <div className='flex h-[45vh] shrink-0 items-center justify-center overflow-hidden p-4 md:h-auto md:flex-1 md:shrink md:p-8'>
           {isCropMode ? (
-            <div className='flex max-h-full max-w-full items-center justify-center overflow-hidden'>
+            <div className='flex h-full w-full items-center justify-center overflow-hidden'>
               <ReactCrop
                 crop={crop}
                 onChange={(c) => setCrop(c)}
                 onComplete={(c) => setCompletedCrop(c)}
                 aspect={aspect}
-                style={{ maxHeight: '70vh', maxWidth: '100%' }}
+                className='max-h-full max-w-full'
               >
                 <img
                   ref={imgRef}
                   src={imageUrl}
                   alt='Crop'
-                  style={{
-                    maxHeight: '70vh',
-                    maxWidth: '100%',
-                    objectFit: 'contain',
-                  }}
+                  className='block max-h-full max-w-full object-contain'
+                  style={{ maxHeight: 'calc(45vh - 2rem)', maxWidth: '100%' }}
                   onLoad={(e) => {
                     const img = e.currentTarget;
                     setImageNaturalSize({
@@ -403,12 +400,12 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
         </div>
 
         {/* Controls Sidebar */}
-        <div className='border-border/50 w-80 space-y-6 overflow-y-auto border-l p-4'>
+        <div className='border-border/50 min-h-0 w-full flex-1 space-y-4 overflow-y-auto border-t p-3 md:w-80 md:flex-none md:space-y-6 md:border-t-0 md:border-l md:p-4'>
           {isCropMode ? (
-            <>
-              {/* Crop Controls */}
-              <Card className='bg-background/40 border-border/50'>
-                <CardContent className='space-y-4 p-4'>
+            <Card className='bg-background/40 border-border/50'>
+              <CardContent className='space-y-4 p-4'>
+                {/* Aspect Ratio */}
+                <div className='space-y-2'>
                   <Label className='text-sm font-medium'>Aspect Ratio</Label>
                   <div className='grid grid-cols-3 gap-2'>
                     {ASPECT_PRESETS.map((preset) => (
@@ -423,12 +420,12 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
                       </Button>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              {/* Custom Size Input */}
-              <Card className='bg-background/40 border-border/50'>
-                <CardContent className='space-y-3 p-4'>
+                <div className='border-border/30 border-t' />
+
+                {/* Custom Size */}
+                <div className='space-y-2'>
                   <Label className='text-sm font-medium'>Custom Size (px)</Label>
                   <div className='grid grid-cols-2 gap-2'>
                     <div>
@@ -484,12 +481,12 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
                       />
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              {/* Crop Info */}
-              <Card className='bg-background/40 border-border/50'>
-                <CardContent className='space-y-2 p-4'>
+                <div className='border-border/30 border-t' />
+
+                {/* Crop Info */}
+                <div className='space-y-1'>
                   <Label className='text-sm font-medium'>Crop Info</Label>
                   <div className='text-muted-foreground space-y-1 text-xs'>
                     <p>
@@ -511,12 +508,12 @@ export function ImageEditor({ imageUrl, onClose }: ImageEditorProps) {
                       </p>
                     )}
                   </div>
-                  <p className='text-muted-foreground mt-2 text-center text-xs'>
+                  <p className='text-muted-foreground text-center text-xs'>
                     Drag corners to adjust crop area
                   </p>
-                </CardContent>
-              </Card>
-            </>
+                </div>
+              </CardContent>
+            </Card>
           ) : (
             <>
               <Card className='bg-background/40 border-border/50 flex h-full flex-col'>
