@@ -31,6 +31,7 @@ export function ControlPanel({
   batchMode = false,
 }: ControlPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isCustomResize, setIsCustomResize] = useState(false);
 
   // Local state for inputs to allow smooth editing/sliding
   const [localQuality, setLocalQuality] = useState(settings.quality);
@@ -120,15 +121,13 @@ export function ControlPanel({
 
   // Determine current preset value based on dimensions
   const getPresetValue = () => {
-    if (!originalDimensions || !settings.width) return 'custom';
+    if (!originalDimensions || !settings.width) return '100';
 
-    // Check for exact matches with small tolerance for rounding
-    const currentRatio = settings.width / originalDimensions.width;
     const presets = [0.25, 0.5, 0.75, 1, 2, 4];
 
     for (const ratio of presets) {
-      // 1% tolerance
-      if (Math.abs(currentRatio - ratio) < 0.01) {
+      const expectedWidth = Math.round(originalDimensions.width * ratio);
+      if (settings.width === expectedWidth) {
         return (ratio * 100).toString();
       }
     }
@@ -243,7 +242,14 @@ export function ControlPanel({
           <Select
             value={getPresetValue()}
             onValueChange={(val) => {
-              if (!val || val === 'custom' || !originalDimensions) return;
+              if (!val || !originalDimensions) return;
+
+              if (val === 'custom') {
+                setIsCustomResize(true);
+                return;
+              }
+
+              setIsCustomResize(false);
               const percent = parseInt(val, 10);
               if (isNaN(percent)) return;
 
@@ -270,8 +276,8 @@ export function ControlPanel({
             </SelectContent>
           </Select>
 
-          {/* Custom dimension inputs - hidden in batch mode */}
-          {!batchMode && (
+          {/* Custom dimension inputs - only shown when 'custom' is selected and not in batch mode */}
+          {!batchMode && (isCustomResize || getPresetValue() === 'custom') && (
             <div className='grid grid-cols-2 gap-4'>
               <div className='space-y-1'>
                 <span className='text-muted-foreground text-[10px] uppercase'>Width</span>

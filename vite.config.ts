@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'icon.webp'],
+      includeAssets: ['icon.svg', 'icon.webp', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'ZipPix - Image Compression',
         short_name: 'ZipPix',
@@ -25,14 +25,19 @@ export default defineConfig({
         categories: ['utilities', 'productivity', 'photos'],
         icons: [
           {
-            src: '/icon.webp',
-            sizes: '512x512',
-            type: 'image/webp',
+            src: '/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
           },
           {
-            src: '/icon.webp',
+            src: '/icon-512.png',
             sizes: '512x512',
-            type: 'image/webp',
+            type: 'image/png',
+          },
+          {
+            src: '/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'maskable',
           },
           {
