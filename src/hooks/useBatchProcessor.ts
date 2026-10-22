@@ -1,162 +1,107 @@
 import { useBatchStore } from '@/store/batchStore';
-import { useImageStore } from '@/store/imageStore';
-import type { CompressionSettings } from '@/types';
+import type { BatchItem, CompressionSettings } from '@/types';
+import { createCompressionWorker, type CompressionResponse } from '@/workers';
 import { useCallback, useEffect, useRef } from 'react';
 
-interface CompressionResponse {
-  type: 'SUCCESS' | 'ERROR' | 'PROGRESS';
-  id: string;
-  blob?: Blob;
-  error?: string;
-  progress?: number;
+/** Run up to N images in parallel, one per worker, capped to keep memory sane */
+function getPoolSize(): number {
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 2 : 2;
+  return Math.max(1, Math.min(4, Math.floor(cores / 2)));
+}
+
+function runOnWorker(
+  worker: Worker,
+  item: BatchItem,
+  settings: CompressionSettings,
+): Promise<CompressionResponse> {
+  return new Promise((resolve) => {
+    const onMessage = (event: MessageEvent<CompressionResponse>) => {
+      if (event.data.id !== item.id) return;
+      worker.removeEventListener('message', onMessage);
+      resolve(event.data);
+    };
+    worker.addEventListener('message', onMessage);
+    worker.postMessage({ type: 'COMPRESS', id: item.id, source: item.file, settings });
+  });
 }
 
 /**
- * Hook for batch processing multiple images
+ * Processes the batch queue with a small worker pool.
+ * Pausing stops dispatching new items; in-flight items finish normally.
  */
 export function useBatchProcessor() {
-  const workerRef = useRef<Worker | null>(null);
-  const processingRef = useRef(false);
+  const poolRef = useRef<Worker[]>([]);
+  const runningRef = useRef(false);
+  const isProcessing = useBatchStore((s) => s.isProcessing);
+  const isPaused = useBatchStore((s) => s.isPaused);
 
-  const {
-    items,
-    isProcessing,
-    isPaused,
-    currentIndex,
-    startProcessing,
-    setCurrentIndex,
-    updateItemStatus,
-  } = useBatchStore();
-
-  const { settings } = useImageStore();
-
-  // Initialize worker
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../workers/compression.worker.ts', import.meta.url), {
-      type: 'module',
-    });
-
+    poolRef.current = Array.from({ length: getPoolSize() }, createCompressionWorker);
     return () => {
-      workerRef.current?.terminate();
+      poolRef.current.forEach((w) => w.terminate());
+      poolRef.current = [];
+      // Anything in flight is lost with the workers: put it back in the queue
+      const { items, updateItem, stopProcessing } = useBatchStore.getState();
+      items
+        .filter((i) => i.status === 'processing')
+        .forEach((i) => updateItem(i.id, { status: 'queued' }));
+      stopProcessing();
     };
   }, []);
 
-  // Process single item
-  const processItem = useCallback(
-    async (itemId: string, file: File, compressionSettings: CompressionSettings) => {
-      return new Promise<void>((resolve, reject) => {
-        if (!workerRef.current) {
-          reject(new Error('Worker not initialized'));
-          return;
-        }
+  const run = useCallback(async () => {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    const settings = useBatchStore.getState().settings;
 
-        const messageHandler = (event: MessageEvent<CompressionResponse>) => {
-          const { type, blob, error, progress } = event.data;
+    const takeNext = (): BatchItem | undefined => {
+      const state = useBatchStore.getState();
+      if (!state.isProcessing || state.isPaused) return undefined;
+      const next = state.items.find((i) => i.status === 'queued');
+      if (next) state.updateItem(next.id, { status: 'processing', error: undefined });
+      return next;
+    };
 
-          switch (type) {
-            case 'PROGRESS':
-              updateItemStatus(itemId, 'processing', {
-                progress: progress ?? 0,
-              });
-              break;
-            case 'SUCCESS':
-              if (blob) {
-                updateItemStatus(itemId, 'complete', {
-                  progress: 100,
-                  compressedBlob: blob,
-                  compressedSize: blob.size,
-                });
-              }
-              workerRef.current?.removeEventListener('message', messageHandler);
-              resolve();
-              break;
-            case 'ERROR':
-              updateItemStatus(itemId, 'error', {
-                error: error || 'Compression failed',
-              });
-              workerRef.current?.removeEventListener('message', messageHandler);
-              reject(new Error(error));
-              break;
-          }
-        };
-
-        workerRef.current.addEventListener('message', messageHandler);
-
-        // Start compression
-        updateItemStatus(itemId, 'processing', { progress: 0 });
-
-        file.arrayBuffer().then((arrayBuffer) => {
-          workerRef.current?.postMessage({
-            type: 'COMPRESS',
-            id: itemId,
-            imageData: arrayBuffer,
-            fileName: file.name,
-            fileType: file.type,
-            settings: compressionSettings,
+    const lane = async (worker: Worker) => {
+      for (let item = takeNext(); item; item = takeNext()) {
+        const result = await runOnWorker(worker, item, settings);
+        const { updateItem, items } = useBatchStore.getState();
+        if (!items.some((i) => i.id === item!.id)) continue; // removed meanwhile
+        if (result.type === 'SUCCESS') {
+          updateItem(item.id, {
+            status: 'complete',
+            compressedBlob: result.blob,
+            compressedSize: result.blob.size,
           });
-        });
-      });
-    },
-    [updateItemStatus],
-  );
-
-  // Process queue
-  const processQueue = useCallback(async () => {
-    if (processingRef.current) return;
-    processingRef.current = true;
+        } else {
+          updateItem(item.id, { status: 'error', error: result.error });
+        }
+      }
+    };
 
     try {
-      for (let i = currentIndex; i < items.length; i++) {
-        // Check if paused
-        const state = useBatchStore.getState();
-        if (state.isPaused) {
-          setCurrentIndex(i);
-          break;
-        }
-
-        // Check if still processing
-        if (!state.isProcessing) {
-          break;
-        }
-
-        const item = items[i];
-        if (item.status === 'queued' || item.status === 'error') {
-          setCurrentIndex(i);
-          try {
-            await processItem(item.id, item.file, settings);
-          } catch (error) {
-            console.error(`Failed to process ${item.file.name}:`, error);
-          }
-        }
-      }
-
-      // Check if all done
-      const finalState = useBatchStore.getState();
-      const allDone = finalState.items.every(
-        (item) => item.status === 'complete' || item.status === 'error',
-      );
-      if (allDone && finalState.isProcessing) {
-        useBatchStore.setState({ isProcessing: false });
-      }
+      await Promise.all(poolRef.current.map(lane));
     } finally {
-      processingRef.current = false;
+      runningRef.current = false;
+      const state = useBatchStore.getState();
+      if (!state.isPaused && !state.items.some((i) => i.status === 'queued')) {
+        state.stopProcessing();
+      }
     }
-  }, [items, currentIndex, settings, processItem, setCurrentIndex]);
+  }, []);
 
-  // Watch for processing state changes
   useEffect(() => {
-    if (isProcessing && !isPaused) {
-      processQueue();
-    }
-  }, [isProcessing, isPaused, processQueue]);
+    if (isProcessing && !isPaused) void run();
+  }, [isProcessing, isPaused, run]);
 
-  // Start processing handler
   const start = useCallback(() => {
+    const { items, updateItem, startProcessing } = useBatchStore.getState();
+    // Retry failed items on a fresh start
+    items
+      .filter((i) => i.status === 'error')
+      .forEach((i) => updateItem(i.id, { status: 'queued' }));
     startProcessing();
-  }, [startProcessing]);
+  }, []);
 
-  return {
-    start,
-    isProcessing: processingRef.current,
-  };
+  return { start, isProcessing };
 }

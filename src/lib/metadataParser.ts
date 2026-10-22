@@ -1,5 +1,3 @@
-import exifr from 'exifr';
-
 export interface ParsedMetadata {
   camera?: {
     make?: string;
@@ -32,6 +30,8 @@ export interface ParsedMetadata {
  */
 export async function parseMetadata(file: File): Promise<ParsedMetadata | null> {
   try {
+    // Loaded on demand so the parser stays out of the initial bundle
+    const { default: exifr } = await import('exifr');
     const data = await exifr.parse(file, {
       // Include all metadata segments
       tiff: true,

@@ -1,31 +1,32 @@
 import { Link } from 'react-router-dom';
-import Github from '../assets/github.svg';
 
 export function Footer() {
   return (
-    <footer className='border-border/50 bg-background/50 mt-auto border-t backdrop-blur-xl'>
-      <div className='container mx-auto px-4 py-6'>
-        <div className='text-muted-foreground flex flex-col items-center justify-between gap-4 text-sm md:flex-row'>
-          <p>© 2025 ZipPix. Privacy-first image compression.</p>
-
-          <div className='flex items-center gap-6'>
-            <Link to='/privacy' className='transition-colors hover:text-cyan-400'>
-              Privacy Policy
-            </Link>
-            <Link to='/terms' className='transition-colors hover:text-cyan-400'>
-              Terms of Service
-            </Link>
-            <a
-              href='https://github.com/IfanRamza/ZipPix'
-              target='_blank'
-              rel='noopener noreferrer'
-              className='flex items-center gap-1 transition-colors hover:text-cyan-400'
-            >
-              <img src={Github} alt='GitHub' className='h-4 w-4' />
-              GitHub
-            </a>
-          </div>
-        </div>
+    <footer className='border-hairline mt-auto border-t'>
+      <div className='text-muted-foreground mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-[12px] sm:flex-row sm:items-center sm:justify-between sm:px-6'>
+        <p>© {new Date().getFullYear()} ZipPix. Your images never leave your device.</p>
+        <nav aria-label='Footer' className='flex items-center gap-1'>
+          <Link to='/privacy' className='hover:text-foreground transition-colors'>
+            Privacy Policy
+          </Link>
+          <span aria-hidden className='text-hairline px-1.5'>
+            |
+          </span>
+          <Link to='/terms' className='hover:text-foreground transition-colors'>
+            Terms of Service
+          </Link>
+          <span aria-hidden className='text-hairline px-1.5'>
+            |
+          </span>
+          <a
+            href='https://github.com/IfanRamza/ZipPix'
+            target='_blank'
+            rel='noopener noreferrer'
+            className='hover:text-foreground transition-colors'
+          >
+            GitHub
+          </a>
+        </nav>
       </div>
     </footer>
   );

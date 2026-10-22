@@ -1,20 +1,24 @@
 import type { ParsedMetadata } from '@/lib/metadataParser';
 
 export type SupportedFormat = 'jpeg' | 'png' | 'webp' | 'avif';
-export type ChromaSubsampling = '4:4:4' | '4:2:2' | '4:2:0';
 
 export interface CompressionSettings {
   format: SupportedFormat;
-  quality: number;
+  quality: number; // 1-100, ignored for PNG (lossless)
+  /** Relative resize in percent of the edited image. Used when width/height are not set. */
+  scale: number;
+  /** Explicit output size (single-image "Custom" mode). Takes precedence over scale. */
   width?: number;
   height?: number;
   maintainAspectRatio: boolean;
-  stripMetadata: boolean;
-  // Advanced settings
-  effort: number; // 0-10, higher = slower but better compression
-  progressive: boolean; // Progressive JPEG
-  chromaSubsampling: ChromaSubsampling; // Color subsampling
 }
+
+export const DEFAULT_SETTINGS: CompressionSettings = {
+  format: 'webp',
+  quality: 85,
+  scale: 100,
+  maintainAspectRatio: true,
+};
 
 export interface ImageDimensions {
   width: number;
@@ -52,6 +56,8 @@ export const DEFAULT_EDIT_STATE: EditState = {
 };
 
 export interface ImageFileState {
+  /** Stable id used as a cache key for decoded bitmaps and background removal */
+  id: string;
   file: File;
   previewUrl: string;
   size: number;
@@ -59,10 +65,18 @@ export interface ImageFileState {
   metadata?: ParsedMetadata;
 }
 
+export interface CompressedImageState {
+  blob: Blob;
+  url: string;
+  size: number;
+  dimensions: ImageDimensions;
+  /** Format the browser actually produced (may differ from the requested one) */
+  format: SupportedFormat;
+}
+
 export interface ProcessingStatus {
   isCompressing: boolean;
   isRemovingBackground: boolean;
-  progress: number;
   error?: string;
 }
 
@@ -74,21 +88,18 @@ export interface AppState {
   editState: EditState;
 
   // Compressed output
-  compressedImage: Blob | null;
-  compressedSize: number;
-  compressedUrl: string | null;
+  compressed: CompressedImageState | null;
 
   // Compression settings
   settings: CompressionSettings;
   status: ProcessingStatus;
-  sliderPosition: number;
 
   // Actions
   setOriginalImage: (file: File) => Promise<void>;
   updateSettings: (settings: Partial<CompressionSettings>) => void;
-  setCompressedImage: (blob: Blob) => void;
+  resetSettings: () => void;
+  setCompressedImage: (blob: Blob, dimensions: ImageDimensions) => void;
   reset: () => void;
-  setSliderPosition: (pos: number) => void;
   setError: (error: string | undefined) => void;
   setProcessing: (isProcessing: boolean) => void;
   setRemovingBackground: (isRemoving: boolean) => void;
@@ -103,12 +114,12 @@ export interface AppState {
 export interface BatchItem {
   id: string;
   file: File;
-  previewUrl: string;
-  outputFilename: string; // Editable output filename
+  /** Small generated thumbnail (object URL), set once decoded */
+  thumbnailUrl?: string;
+  outputFilename: string; // Editable output filename (without extension)
   status: 'queued' | 'processing' | 'complete' | 'error';
-  progress: number;
-  width?: number; // Image width
-  height?: number; // Image height
+  width?: number;
+  height?: number;
   compressedBlob?: Blob;
   compressedSize?: number;
   error?: string;
@@ -118,5 +129,4 @@ export interface BatchState {
   items: BatchItem[];
   isProcessing: boolean;
   isPaused: boolean;
-  currentIndex: number;
 }

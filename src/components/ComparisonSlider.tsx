@@ -1,274 +1,207 @@
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { useImageStore } from '@/store/imageStore';
-import type { EditState } from '@/types';
-import { ArrowLeftRight, Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { hasColorAdjustments, hasGeometryEdits } from '@/lib/editPipeline';
+import { renderPreview } from '@/lib/image';
+import { cn } from '@/lib/utils';
+import type { EditState, ImageFileState } from '@/types';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from 'react';
 
 interface ComparisonSliderProps {
-  originalUrl: string;
+  original: ImageFileState;
+  editState: EditState;
   compressedUrl: string | null;
-  position?: number;
-  onPositionChange?: (position: number) => void;
+  isCompressing?: boolean;
   isRemovingBackground?: boolean;
 }
 
-// Generate preview URL from canvas with all edits applied
-async function generateEditedPreview(imageUrl: string, editState: EditState): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const { crop, rotation, flipHorizontal, flipVertical, brightness, contrast, saturation } =
-        editState;
+/** Renders the edited (pre-compression) original, downscaled for display */
+function useEditedOriginal(original: ImageFileState, editState: EditState): string {
+  const needsRender = hasGeometryEdits(editState) || hasColorAdjustments(editState);
+  const [rendered, setRendered] = useState<{ key: EditState; url: string } | null>(null);
+  const currentUrl = useRef<string | null>(null);
 
-      // Determine source dimensions (after crop)
-      const srcX = crop?.x ?? 0;
-      const srcY = crop?.y ?? 0;
-      const srcW = crop?.width ?? img.naturalWidth;
-      const srcH = crop?.height ?? img.naturalHeight;
-
-      // Determine if rotated 90 or 270 (dimensions swap)
-      const isRotatedSideways = rotation === 90 || rotation === 270;
-      const finalWidth = isRotatedSideways ? srcH : srcW;
-      const finalHeight = isRotatedSideways ? srcW : srcH;
-
-      // Create canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = finalWidth;
-      canvas.height = finalHeight;
-      const ctx = canvas.getContext('2d');
-
-      if (!ctx) {
-        reject(new Error('Failed to get canvas context'));
-        return;
-      }
-
-      // Apply transformations
-      ctx.save();
-      ctx.translate(finalWidth / 2, finalHeight / 2);
-
-      // Apply rotation
-      if (rotation !== 0) {
-        ctx.rotate((rotation * Math.PI) / 180);
-      }
-
-      // Apply flips
-      const scaleX = flipHorizontal ? -1 : 1;
-      const scaleY = flipVertical ? -1 : 1;
-      ctx.scale(scaleX, scaleY);
-
-      // Draw the cropped portion centered
-      ctx.drawImage(img, srcX, srcY, srcW, srcH, -srcW / 2, -srcH / 2, srcW, srcH);
-
-      ctx.restore();
-
-      // Apply color filters if any
-      if (brightness !== 0 || contrast !== 0 || saturation !== 0) {
-        const imageData = ctx.getImageData(0, 0, finalWidth, finalHeight);
-        const data = imageData.data;
-
-        const brightnessFactor = brightness / 100;
-        const contrastFactor = (contrast + 100) / 100;
-        const saturationFactor = (saturation + 100) / 100;
-
-        for (let i = 0; i < data.length; i += 4) {
-          let r = data[i];
-          let g = data[i + 1];
-          let b = data[i + 2];
-
-          r += 255 * brightnessFactor;
-          g += 255 * brightnessFactor;
-          b += 255 * brightnessFactor;
-
-          r = (r - 128) * contrastFactor + 128;
-          g = (g - 128) * contrastFactor + 128;
-          b = (b - 128) * contrastFactor + 128;
-
-          const gray = 0.2989 * r + 0.587 * g + 0.114 * b;
-          r = gray + saturationFactor * (r - gray);
-          g = gray + saturationFactor * (g - gray);
-          b = gray + saturationFactor * (b - gray);
-
-          data[i] = Math.max(0, Math.min(255, r));
-          data[i + 1] = Math.max(0, Math.min(255, g));
-          data[i + 2] = Math.max(0, Math.min(255, b));
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-      }
-
-      resolve(canvas.toDataURL('image/jpeg', 0.9));
-    };
-    img.onerror = () => reject(new Error('Failed to load image'));
-    img.src = imageUrl;
-  });
-}
-
-function hasAnyEdits(editState: EditState): boolean {
-  return !!(
-    editState.crop ||
-    editState.rotation !== 0 ||
-    editState.flipHorizontal ||
-    editState.flipVertical ||
-    editState.brightness !== 0 ||
-    editState.contrast !== 0 ||
-    editState.saturation !== 0
-  );
-}
-
-export function ComparisonSlider({
-  originalUrl,
-  compressedUrl,
-  position = 50,
-  onPositionChange,
-  isRemovingBackground = false,
-}: ComparisonSliderProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isResizing, setIsResizing] = useState(false);
-  const [localPosition, setLocalPosition] = useState(position);
-
-  // Get editState from store to apply to original preview
-  const { editState } = useImageStore();
-  const [editedOriginalUrl, setEditedOriginalUrl] = useState<string>(originalUrl);
-
-  // Generate edited preview when editState or originalUrl changes
   useEffect(() => {
+    if (!needsRender) return;
     let cancelled = false;
-
-    const updatePreview = async () => {
-      if (hasAnyEdits(editState)) {
-        try {
-          const url = await generateEditedPreview(originalUrl, editState);
-          if (!cancelled) {
-            setEditedOriginalUrl(url);
-          }
-        } catch (error) {
-          console.error('Failed to generate edited preview:', error);
-          if (!cancelled) {
-            setEditedOriginalUrl(originalUrl);
-          }
-        }
-      } else {
-        setEditedOriginalUrl(originalUrl);
-      }
-    };
-
-    updatePreview();
-
+    renderPreview(original.file, editState)
+      .then(({ url }) => {
+        if (cancelled) return URL.revokeObjectURL(url);
+        // The previous preview stays visible until the new one is ready
+        if (currentUrl.current) URL.revokeObjectURL(currentUrl.current);
+        currentUrl.current = url;
+        setRendered({ key: editState, url });
+      })
+      .catch((error) => console.error('Failed to render edited preview', error));
     return () => {
       cancelled = true;
     };
-  }, [editState, originalUrl]);
+  }, [original.file, editState, needsRender]);
 
-  const updatePosition = useCallback(
-    (clientX: number) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-      const percentage = (x / rect.width) * 100;
-      setLocalPosition(percentage);
-      onPositionChange?.(percentage);
+  useEffect(
+    () => () => {
+      if (currentUrl.current) URL.revokeObjectURL(currentUrl.current);
     },
-    [onPositionChange],
+    [],
   );
 
-  useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
-      if (isResizing) {
-        updatePosition(e.clientX);
-      }
-    };
+  if (!needsRender) return original.previewUrl;
+  return rendered?.key === editState ? rendered.url : (rendered?.url ?? original.previewUrl);
+}
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (isResizing && e.touches[0]) {
-        updatePosition(e.touches[0].clientX);
-      }
-    };
+export function ComparisonSlider({
+  original,
+  editState,
+  compressedUrl,
+  isCompressing = false,
+  isRemovingBackground = false,
+}: ComparisonSliderProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const clipRef = useRef<HTMLDivElement>(null);
+  const handleRef = useRef<HTMLDivElement>(null);
+  const positionRef = useRef(50);
+  const [dragging, setDragging] = useState(false);
+  const [ariaValue, setAriaValue] = useState(50);
 
-    const stopResizing = () => setIsResizing(false);
+  const originalUrl = useEditedOriginal(original, editState);
+  const isEdited =
+    hasGeometryEdits(editState) || hasColorAdjustments(editState) || editState.removeBackground;
 
-    if (isResizing) {
-      window.addEventListener('mousemove', handleMove);
-      window.addEventListener('mouseup', stopResizing);
-      window.addEventListener('touchmove', handleTouchMove);
-      window.addEventListener('touchend', stopResizing);
-    }
+  // Position updates bypass React entirely — no re-render while dragging
+  const applyPosition = useCallback((pct: number) => {
+    const clamped = Math.max(0, Math.min(100, pct));
+    positionRef.current = clamped;
+    if (clipRef.current) clipRef.current.style.clipPath = `inset(0 ${100 - clamped}% 0 0)`;
+    if (handleRef.current) handleRef.current.style.left = `${clamped}%`;
+  }, []);
 
-    return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', stopResizing);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', stopResizing);
-    };
-  }, [isResizing, updatePosition]);
+  const positionFromPointer = (clientX: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    applyPosition(((clientX - rect.left) / rect.width) * 100);
+  };
 
-  // Determine label based on whether edits are applied
-  const originalLabel = hasAnyEdits(editState) ? 'Edited' : 'Original';
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+    positionFromPointer(e.clientX);
+  };
+
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (dragging) positionFromPointer(e.clientX);
+  };
+
+  const onPointerUp = () => {
+    setDragging(false);
+    setAriaValue(Math.round(positionRef.current));
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = e.shiftKey ? 10 : 2;
+    const next =
+      e.key === 'ArrowLeft'
+        ? positionRef.current - step
+        : e.key === 'ArrowRight'
+          ? positionRef.current + step
+          : e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? 100
+              : null;
+    if (next === null) return;
+    e.preventDefault();
+    applyPosition(next);
+    setAriaValue(Math.round(positionRef.current));
+  };
+
+  useEffect(() => applyPosition(positionRef.current), [applyPosition]);
+
+  const label = isEdited ? 'Edited' : 'Original';
 
   return (
-    <Card className='border-border/50 bg-background/40 group animate-in fade-in relative touch-none overflow-hidden rounded backdrop-blur-xl duration-300 select-none'>
+    <div className='bg-checker shadow-card relative overflow-hidden rounded-3xl'>
       <div
         ref={containerRef}
-        className='relative aspect-video w-full cursor-ew-resize'
-        onMouseDown={() => setIsResizing(true)}
-        onTouchStart={() => setIsResizing(true)}
+        role='slider'
+        tabIndex={0}
+        aria-label='Compare original and compressed'
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={ariaValue}
+        aria-valuetext={`${ariaValue}% ${label.toLowerCase()}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onKeyDown={onKeyDown}
+        className='focus-visible:ring-ring relative h-[min(62vh,560px)] min-h-72 w-full cursor-ew-resize touch-none outline-none select-none focus-visible:ring-4 focus-visible:ring-inset'
       >
-        {/* Background: Compressed Image (Full width, always visible on right side) */}
-        <div className='absolute inset-0 bg-black/20'>
-          {compressedUrl ? (
-            <img
-              src={compressedUrl}
-              alt='Compressed'
-              className='pointer-events-none h-full w-full object-contain'
-              draggable={false}
-            />
-          ) : (
-            <div className='flex h-full w-full items-center justify-center'>
-              <span className='text-muted-foreground text-sm'>Compressing...</span>
-            </div>
-          )}
-        </div>
-
-        {/* Foreground: Original/Edited Image (Clipped by slider position) */}
-        <div
-          className='absolute inset-0 overflow-hidden'
-          style={{ clipPath: `inset(0 ${100 - localPosition}% 0 0)` }}
-        >
+        {/* Compressed (full) */}
+        {compressedUrl ? (
           <img
-            src={editedOriginalUrl}
-            alt={originalLabel}
-            className='pointer-events-none h-full w-full object-contain'
+            src={compressedUrl}
+            alt='Compressed result'
+            className='pointer-events-none absolute inset-0 size-full object-contain'
             draggable={false}
+            decoding='async'
+          />
+        ) : (
+          <div className='text-muted-foreground absolute inset-0 flex items-center justify-center'>
+            <LoadingSpinner size={24} />
+          </div>
+        )}
+
+        {/* Original / edited (clipped) */}
+        <div ref={clipRef} className='absolute inset-0' style={{ clipPath: 'inset(0 50% 0 0)' }}>
+          <img
+            src={originalUrl}
+            alt={label}
+            className='pointer-events-none size-full object-contain'
+            draggable={false}
+            decoding='async'
           />
         </div>
 
-        {/* Slider Handle */}
+        {/* Handle */}
         <div
-          className='absolute top-0 bottom-0 z-10 w-0.5 cursor-ew-resize bg-linear-to-b from-cyan-500/50 via-cyan-400 to-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.5)]'
-          style={{ left: `${localPosition}%` }}
+          ref={handleRef}
+          className='pointer-events-none absolute inset-y-0 z-10 w-0.5 -translate-x-1/2 bg-white shadow-[0_0_8px_rgb(0_0_0/0.35)]'
+          style={{ left: '50%' }}
         >
-          <div className='bg-background absolute top-1/2 left-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-cyan-400 shadow-lg shadow-cyan-500/20 transition-transform hover:scale-110 active:scale-95'>
-            <ArrowLeftRight className='h-5 w-5 text-cyan-400' />
+          <div
+            className={cn(
+              'absolute top-1/2 left-1/2 flex size-9 -translate-1/2 items-center justify-center rounded-full bg-white/90 text-black shadow-lg backdrop-blur transition-transform duration-200',
+              dragging && 'scale-110',
+            )}
+          >
+            <svg viewBox='0 0 24 24' className='size-4' fill='currentColor' aria-hidden>
+              <path d='M9 6l-6 6 6 6V6zm6 0v12l6-6-6-6z' />
+            </svg>
           </div>
         </div>
 
         {/* Labels */}
-        <Badge className='bg-background/80 pointer-events-none absolute top-4 left-4 z-20 rounded-sm shadow-sm backdrop-blur'>
-          {originalLabel}
-        </Badge>
-        <Badge className='bg-background/80 pointer-events-none absolute top-4 right-4 z-20 rounded-sm shadow-sm backdrop-blur'>
+        <span className='pointer-events-none absolute top-3 left-3 z-20 rounded-full bg-black/55 px-2.5 py-1 text-[12px] font-medium text-white backdrop-blur-md'>
+          {label}
+        </span>
+        <span className='pointer-events-none absolute top-3 right-3 z-20 flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-[12px] font-medium text-white backdrop-blur-md'>
+          {isCompressing && <LoadingSpinner size={12} />}
           Compressed
-        </Badge>
+        </span>
 
-        {/* BG Removal Overlay */}
         {isRemovingBackground && (
-          <div className='absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/60 backdrop-blur-sm'>
-            <Loader2 className='h-8 w-8 animate-spin text-violet-400' />
-            <span className='text-sm font-medium text-violet-300'>Removing background...</span>
+          <div className='absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/50 text-white backdrop-blur-md'>
+            <LoadingSpinner size={28} />
+            <span className='text-[15px] font-medium'>Removing background…</span>
+            <span className='text-[12px] text-white/70'>First run downloads the AI model</span>
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 }

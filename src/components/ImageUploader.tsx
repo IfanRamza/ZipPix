@@ -1,17 +1,17 @@
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { validateFileSignature } from '@/lib/security';
 import { cn, validateFileType } from '@/lib/utils';
-import { AlertCircle, Upload } from 'lucide-react';
+import { AlertCircle, ImageUp } from 'lucide-react';
 import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
 interface ImageUploaderProps {
-  onUpload: (file: File) => void;
+  onUpload: (file: File) => void | Promise<void>;
   maxSize?: number; // in bytes
 }
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+export const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,image/avif,image/gif';
 
 export function ImageUploader({ onUpload, maxSize = MAX_FILE_SIZE }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -22,44 +22,31 @@ export function ImageUploader({ onUpload, maxSize = MAX_FILE_SIZE }: ImageUpload
   const processFile = useCallback(
     async (file: File) => {
       setError(null);
-      setIsVerifying(true);
 
-      // Validate type
+      // Cheap checks first, before reading any bytes
       if (!validateFileType(file)) {
-        setError('Unsupported file format. Please use JPEG, PNG, WebP, AVIF, or GIF.');
-        setIsVerifying(false);
+        setError('Unsupported format. Use JPEG, PNG, WebP, AVIF or GIF.');
+        return;
+      }
+      if (file.size > maxSize) {
+        setError(`File is larger than ${Math.round(maxSize / 1024 / 1024)} MB.`);
         return;
       }
 
-      // Security: Validate Magic Bytes
+      setIsVerifying(true);
       try {
-        const { validateFileSignature } = await import('@/lib/security');
-        const isValidSignature = await validateFileSignature(file);
-
-        if (!isValidSignature) {
-          setError(
-            'Security Alert: File content does not match its extension. Please allow valid image files only.',
-          );
-          setIsVerifying(false);
+        // Security: verify magic bytes so a renamed file can't masquerade as an image
+        if (!(await validateFileSignature(file))) {
+          setError("This file's contents don't match an image format.");
           return;
         }
+        await onUpload(file);
       } catch (e) {
-        // Reject files that fail validation (e.g., 0 byte, corrupted)
-        console.warn('Signature validation failed', e);
-        setError('File validation failed. The file may be corrupted or empty.');
+        console.warn('Upload failed', e);
+        setError('This image could not be opened. It may be corrupted or empty.');
+      } finally {
         setIsVerifying(false);
-        return;
       }
-
-      // Validate size
-      if (file.size > maxSize) {
-        setError(`File size exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit.`);
-        setIsVerifying(false);
-        return;
-      }
-
-      setIsVerifying(false);
-      onUpload(file);
     },
     [maxSize, onUpload],
   );
@@ -70,122 +57,95 @@ export function ImageUploader({ onUpload, maxSize = MAX_FILE_SIZE }: ImageUpload
   };
 
   const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
     setIsDragging(false);
   };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-
-    if (isVerifying) return;
-
-    if (e.dataTransfer.files?.[0]) {
-      processFile(e.dataTransfer.files[0]);
-    }
+    const file = e.dataTransfer.files?.[0];
+    if (!isVerifying && file) processFile(file);
   };
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      processFile(e.target.files[0]);
-    }
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    e.target.value = '';
   };
 
+  const openPicker = () => !isVerifying && fileInputRef.current?.click();
+
   return (
-    <div className='animate-in fade-in mx-auto w-full max-w-2xl duration-500'>
-      <Card
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onClick={openPicker}
+      className={cn(
+        'group bg-card shadow-card relative cursor-pointer rounded-[28px] p-2 transition-all duration-300',
+        isDragging && 'ring-primary scale-[1.01] ring-4',
+        isVerifying && 'cursor-wait',
+      )}
+    >
+      <input
+        type='file'
+        ref={fileInputRef}
+        className='hidden'
+        accept={ACCEPTED_TYPES}
+        onChange={handleFileSelect}
+        disabled={isVerifying}
+        aria-label='Choose an image'
+      />
+
+      <div
         className={cn(
-          'bg-background/40 cursor-pointer rounded border-2 border-dashed backdrop-blur-xl transition-all duration-300',
+          'flex flex-col items-center justify-center rounded-[22px] border-2 border-dashed px-6 py-14 text-center transition-colors sm:py-20',
           isDragging
-            ? 'scale-[1.02] border-cyan-500 bg-cyan-500/5'
-            : 'border-border/50 hover:border-cyan-500/50',
-          error && 'border-red-500/50',
-          isVerifying && 'cursor-wait opacity-80',
+            ? 'border-primary bg-primary/5'
+            : 'border-hairline group-hover:border-primary/40',
         )}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={() => !isVerifying && fileInputRef.current?.click()}
       >
-        <CardContent className='flex flex-col items-center justify-center px-4 py-16'>
-          <input
-            type='file'
-            ref={fileInputRef}
-            className='hidden'
-            accept='image/jpeg,image/png,image/webp,image/avif,image/gif'
-            onChange={handleFileSelect}
-            disabled={isVerifying}
-          />
-
-          <div
-            className={cn(
-              'mb-6 flex h-20 w-20 items-center justify-center rounded-full transition-colors',
-              isDragging ? 'bg-cyan-500/20' : 'bg-linear-to-br from-cyan-500/10 to-blue-500/10',
-            )}
-          >
-            {isVerifying ? (
-              <LoadingSpinner size={40} className='text-cyan-400' />
-            ) : (
-              <Upload
-                className={cn(
-                  'h-10 w-10 transition-all',
-                  isDragging ? 'scale-110 text-cyan-400' : 'text-cyan-500/80',
-                )}
-              />
-            )}
-          </div>
-
-          <h3 className='mb-2 text-xl font-semibold'>
-            {isVerifying ? 'Verifying file...' : isDragging ? 'Drop it!' : 'Drop your image here'}
-          </h3>
-          <p className='text-muted-foreground mb-8 text-center'>
-            {isVerifying ? 'Checking magic bytes & details' : 'or click to browse'}
-          </p>
-
-          <Button
-            size='lg'
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isVerifying) return;
-              fileInputRef.current?.click();
-            }}
-            disabled={isVerifying}
-            className='min-w-[200px] cursor-pointer rounded-sm bg-linear-to-r from-cyan-500 to-blue-500 shadow-lg shadow-cyan-500/25 hover:opacity-90'
-          >
-            {isVerifying ? (
-              <>
-                <LoadingSpinner className='mr-2 text-white' size={16} />
-                Verifying...
-              </>
-            ) : (
-              'Select Image'
-            )}
-          </Button>
-
-          {error && (
-            <div className='animate-in fade-in mt-6 flex items-center gap-2 rounded-sm bg-red-500/10 px-4 py-2 text-red-400'>
-              <AlertCircle className='h-4 w-4' />
-              <span className='text-sm font-medium'>{error}</span>
-            </div>
+        <div
+          className={cn(
+            'mb-6 flex size-16 items-center justify-center rounded-2xl transition-all duration-300',
+            isDragging
+              ? 'bg-primary scale-110 text-white'
+              : 'bg-brand text-white shadow-lg shadow-fuchsia-500/20 group-hover:scale-105',
           )}
+        >
+          {isVerifying ? <LoadingSpinner size={28} /> : <ImageUp className='size-8' />}
+        </div>
 
-          <div className='text-muted-foreground mt-12 flex flex-wrap justify-center gap-2 text-xs'>
-            {['JPEG', 'PNG', 'WebP', 'AVIF', 'GIF'].map((fmt) => (
-              <Badge
-                key={fmt}
-                variant='outline'
-                className='border-border/50 bg-background/50 rounded-sm'
-              >
-                {fmt}
-              </Badge>
-            ))}
+        <h2 className='text-[24px] font-semibold tracking-tight'>
+          {isVerifying ? 'Opening…' : isDragging ? 'Drop to start' : 'Drop your image here'}
+        </h2>
+        <p className='text-muted-foreground mt-1 mb-7 text-[15px]'>
+          JPEG, PNG, WebP, AVIF or GIF — up to {Math.round(maxSize / 1024 / 1024)} MB
+        </p>
+
+        <Button
+          size='lg'
+          onClick={(e) => {
+            e.stopPropagation();
+            openPicker();
+          }}
+          disabled={isVerifying}
+          className='min-w-44'
+        >
+          Select Image
+        </Button>
+
+        {error && (
+          <div
+            role='alert'
+            className='bg-destructive/10 text-destructive motion-safe:animate-in motion-safe:fade-in mt-6 flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium'
+          >
+            <AlertCircle className='size-4' />
+            {error}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 }

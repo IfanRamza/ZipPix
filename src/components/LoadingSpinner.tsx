@@ -1,24 +1,42 @@
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
 
 interface LoadingSpinnerProps {
   className?: string;
   size?: number;
 }
 
-export function LoadingSpinner({ className, size = 24 }: LoadingSpinnerProps) {
-  return <Loader2 className={cn('animate-spin text-cyan-400', className)} size={size} />;
-}
-
-interface PageLoadingProps {
-  message?: string;
-}
-
-export function PageLoading({ message = 'Loading...' }: PageLoadingProps) {
+/** Apple-style activity indicator (12 fading spokes) */
+export function LoadingSpinner({ className, size = 20 }: LoadingSpinnerProps) {
   return (
-    <div className='animate-in fade-in flex min-h-[50vh] flex-col items-center justify-center gap-4 duration-300'>
-      <LoadingSpinner size={48} />
-      <p className='text-muted-foreground text-sm font-medium'>{message}</p>
+    <svg
+      viewBox='0 0 24 24'
+      width={size}
+      height={size}
+      role='status'
+      aria-label='Loading'
+      className={cn('animate-spin text-current [animation-duration:900ms]', className)}
+    >
+      {Array.from({ length: 12 }, (_, i) => (
+        <rect
+          key={i}
+          x='11'
+          y='2'
+          width='2'
+          height='6'
+          rx='1'
+          fill='currentColor'
+          opacity={0.15 + (i / 12) * 0.85}
+          transform={`rotate(${i * 30} 12 12)`}
+        />
+      ))}
+    </svg>
+  );
+}
+
+export function PageLoading() {
+  return (
+    <div className='text-muted-foreground flex min-h-[60dvh] items-center justify-center'>
+      <LoadingSpinner size={28} />
     </div>
   );
 }

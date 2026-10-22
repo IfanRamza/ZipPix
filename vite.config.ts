@@ -1,25 +1,45 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+/**
+ * @imgly/background-removal points onnxruntime at WASM files on its own CDN,
+ * so the 24 MB copies Vite emits from onnxruntime-web are never requested.
+ */
+function dropUnusedOnnxWasm(): Plugin {
+  return {
+    name: 'drop-unused-onnx-wasm',
+    apply: 'build',
+    generateBundle(_, bundle) {
+      for (const name of Object.keys(bundle)) {
+        if (/ort-wasm[^/]*\.wasm$/.test(name)) delete bundle[name];
+      }
+    },
+  };
+}
+
 export default defineConfig({
+  // The compression worker lazy-loads the AVIF encoder, which needs code splitting
+  worker: { format: 'es' },
+  // jsquash resolves its .wasm via import.meta.url; pre-bundling would break that path
+  optimizeDeps: { exclude: ['@jsquash/avif'] },
   plugins: [
     react(),
+    dropUnusedOnnxWasm(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'icon.webp', 'icon-192.png', 'icon-512.png'],
+      includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'ZipPix - Image Compression',
         short_name: 'ZipPix',
         description:
           'Privacy-first, client-side image compression. Compress images without uploading to any server.',
-        theme_color: '#06b6d4',
-        background_color: '#0a0f14',
+        theme_color: '#5b3df5',
+        background_color: '#f6f6fa',
         display: 'standalone',
-        orientation: 'portrait',
         start_url: '/',
         scope: '/',
         categories: ['utilities', 'productivity', 'photos'],
@@ -35,7 +55,7 @@ export default defineConfig({
             type: 'image/png',
           },
           {
-            src: '/icon-512.png',
+            src: '/icon-maskable-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
@@ -48,23 +68,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,webp,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-        ],
+        globPatterns: ['**/*.{js,css,html,svg,webp,png}'],
+        // ONNX runtime (~800 KB) and the AVIF encoder are only needed on demand
+        globIgnores: ['**/ort*.{js,mjs}', '**/avif_enc*.js', '**/*.wasm', '**/icon-*512.png'],
       },
       devOptions: {
         enabled: false, // Disable in dev mode
@@ -72,9 +78,6 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
-  },
-  optimizeDeps: {
-    exclude: ['@squoosh/lib'], // Exclude WASM from pre-bundling
+    alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
 });

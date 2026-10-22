@@ -1,82 +1,46 @@
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { getFileExtension } from '@/lib/formats';
 import { strictSanitizeFilename } from '@/lib/security';
+import { defaultOutputBase } from '@/lib/utils';
 import type { SupportedFormat } from '@/types';
-import { Check, Copy } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 interface FilenameEditorProps {
   originalFilename: string;
   format: SupportedFormat;
-  onChange?: (filename: string) => void;
+  onChange: (filename: string) => void;
 }
 
+function baseName(name: string) {
+  const lastDot = name.lastIndexOf('.');
+  return lastDot > 0 ? name.slice(0, lastDot) : name;
+}
+
+/** Edits the base name; the extension always follows the output format */
 export function FilenameEditor({ originalFilename, format, onChange }: FilenameEditorProps) {
-  const [filename, setFilename] = useState(() => {
-    const lastDot = originalFilename.lastIndexOf('.');
-    const base = lastDot > 0 ? originalFilename.slice(0, lastDot) : originalFilename;
-    return strictSanitizeFilename(`${base}_compressed.${format}`);
-  });
-  const [isCopied, setIsCopied] = useState(false);
+  const [base, setBase] = useState(() => defaultOutputBase(originalFilename));
+  const ext = getFileExtension(format);
 
-  // Generate filename when original or format changes
-  useEffect(() => {
-    const lastDot = originalFilename.lastIndexOf('.');
-    const base = lastDot > 0 ? originalFilename.slice(0, lastDot) : originalFilename;
-    const newFilename = strictSanitizeFilename(`${base}_compressed.${format}`);
-    setFilename(newFilename);
-    onChange?.(newFilename);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [originalFilename, format]);
-
-  const handleChange = (value: string) => {
-    setFilename(value);
-  };
-
-  const handleBlur = () => {
-    // Sanitize on blur
-    const sanitized = strictSanitizeFilename(filename);
-    // Ensure correct extension
-    const lastDot = sanitized.lastIndexOf('.');
-    const base = lastDot > 0 ? sanitized.slice(0, lastDot) : sanitized;
-    const finalFilename = `${base}.${format}`;
-    setFilename(finalFilename);
-    onChange?.(finalFilename);
-  };
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(filename);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy:', error);
-    }
+  const commit = () => {
+    const safe = baseName(strictSanitizeFilename(`${base}.${ext}`));
+    setBase(safe);
+    onChange(safe);
   };
 
   return (
-    <div className='animate-in fade-in w-full space-y-2'>
-      <Label className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
-        Output Filename
-      </Label>
-      <div className='flex gap-2'>
+    <label className='block space-y-1.5'>
+      <span className='text-muted-foreground px-1 text-[13px]'>File name</span>
+      <div className='bg-secondary focus-within:ring-ring flex items-center rounded-xl pr-3 focus-within:ring-4'>
         <Input
-          value={filename}
-          onChange={(e) => handleChange(e.target.value)}
-          onBlur={handleBlur}
-          className='flex-1 font-mono text-sm'
+          value={base}
+          onChange={(e) => setBase(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          spellCheck={false}
+          className='bg-transparent focus-visible:ring-0'
         />
-        <Button
-          size='icon'
-          variant='outline'
-          onClick={handleCopy}
-          title='Copy filename'
-          className='shrink-0'
-        >
-          {isCopied ? <Check className='h-4 w-4 text-green-400' /> : <Copy className='h-4 w-4' />}
-        </Button>
+        <span className='text-muted-foreground text-[15px]'>.{ext}</span>
       </div>
-    </div>
+    </label>
   );
 }

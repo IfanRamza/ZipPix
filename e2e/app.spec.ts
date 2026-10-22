@@ -1,4 +1,45 @@
 import { expect, test } from '@playwright/test';
+import { deflateSync } from 'node:zlib';
+
+/** Build a small valid PNG (solid colour) without needing fixture files */
+function makePng(width: number, height: number, noisy = false): Buffer {
+  const crcTable = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (buf: Buffer) => {
+    let c = 0xffffffff;
+    for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, data: Buffer) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const sum = Buffer.alloc(4);
+    sum.writeUInt32BE(crc(body));
+    return Buffer.concat([len, body, sum]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // RGB
+  // Noisy pixels compress poorly, which makes quality/size trade-offs observable
+  const makeRow = () => {
+    const pixels = Buffer.alloc(width * 3, 0x60);
+    if (noisy) for (let i = 0; i < pixels.length; i++) pixels[i] = (Math.random() * 256) | 0;
+    return Buffer.concat([Buffer.from([0]), pixels]);
+  };
+  const raw = Buffer.concat(Array.from({ length: height }, makeRow));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
 
 test.describe('ZipPix Application', () => {
   test.beforeEach(async ({ page }) => {
@@ -6,25 +47,20 @@ test.describe('ZipPix Application', () => {
   });
 
   test('should display the home page with upload zone', async ({ page }) => {
-    // Check hero text
-    await expect(page.getByText('Compress images.')).toBeVisible();
-    await expect(page.getByText('Protect privacy.')).toBeVisible();
-
-    // Check upload zone
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Smaller images.');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Nothing uploaded.');
     await expect(page.getByText('Drop your image here')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Select Image' })).toBeVisible();
   });
 
   test('should have working navbar', async ({ page }) => {
-    // Check logo - use more specific selector for the heading
-    await expect(page.getByRole('heading', { name: 'ZipPix' })).toBeVisible();
-
-    // Check upload button in navbar
-    await expect(page.getByRole('button', { name: 'Upload Image' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'ZipPix home' })).toBeVisible();
+    await page.getByRole('link', { name: 'Batch' }).click();
+    await expect(page).toHaveURL('/batch');
+    await expect(page.getByRole('heading', { name: 'Many images. One ZIP.' })).toBeVisible();
   });
 
   test('should have working footer links', async ({ page }) => {
-    // Check footer
     await expect(page.getByRole('link', { name: 'Privacy Policy' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Terms of Service' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'GitHub' })).toBeVisible();
@@ -43,36 +79,78 @@ test.describe('ZipPix Application', () => {
   });
 });
 
-test.describe('Image Upload Flow', () => {
-  test.beforeEach(async ({ page }) => {
+test.describe('Single image flow', () => {
+  test('compresses an uploaded image and offers a download', async ({ page }) => {
     await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'sample.png',
+      mimeType: 'image/png',
+      buffer: makePng(320, 200),
+    });
+
+    await expect(page.getByRole('heading', { name: 'sample.png' })).toBeVisible();
+    await expect(page.getByRole('img', { name: 'Compressed result' })).toBeVisible();
+    await expect(page.getByText('WebP · 320×200')).toBeVisible();
+
+    // Halving the size updates the output dimensions
+    await page.getByRole('radio', { name: '50%' }).click();
+    await expect(page.getByText('WebP · 160×100')).toBeVisible();
+
+    // Switching to JPEG changes the extension
+    await page.getByRole('radio', { name: 'JPEG' }).click();
+    await expect(page.getByText('JPEG · 160×100')).toBeVisible();
+
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download' }).click();
+    expect((await download).suggestedFilename()).toBe('sample_compressed.jpg');
   });
 
-  test('should have hidden file inputs for upload', async ({ page }) => {
-    // There are multiple file inputs (navbar + main uploader), all should be hidden from view
-    const fileInputs = page.locator('input[type="file"]');
-    const count = await fileInputs.count();
-    expect(count).toBeGreaterThanOrEqual(1);
-
-    // All file inputs should have the hidden class
-    for (let i = 0; i < count; i++) {
-      await expect(fileInputs.nth(i)).toHaveClass(/hidden/);
-    }
+  test('comparison slider is keyboard accessible', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'sample.png',
+      mimeType: 'image/png',
+      buffer: makePng(64, 64),
+    });
+    const slider = page.getByRole('slider', { name: 'Compare original and compressed' });
+    await slider.focus();
+    await page.keyboard.press('End');
+    await expect(slider).toHaveAttribute('aria-valuenow', '100');
   });
 
-  test('should display Select Image button', async ({ page }) => {
-    await expect(page.getByRole('button', { name: 'Select Image' })).toBeVisible();
+  test('editor applies a rotation', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'sample.png',
+      mimeType: 'image/png',
+      buffer: makePng(300, 100),
+    });
+    await expect(page.getByText('WebP · 300×100')).toBeVisible();
+    await page.getByRole('button', { name: 'Edit' }).click();
+    await page.getByRole('button', { name: 'Rotate right' }).click();
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByText('Rotated 90°')).toBeVisible();
+    await expect(page.getByText('WebP · 100×300')).toBeVisible();
   });
 });
 
-test.describe('Compression Settings', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-  });
+test.describe('Batch flow', () => {
+  test('processes several images and downloads a ZIP', async ({ page }) => {
+    await page.goto('/batch');
+    await page.locator('input[type="file"]').setInputFiles(
+      [1, 2, 3].map((i) => ({
+        name: `img${i}.png`,
+        mimeType: 'image/png',
+        buffer: makePng(100 * i, 80),
+      })),
+    );
+    await expect(page.getByText('Queue · 3')).toBeVisible();
+    await page.getByRole('button', { name: 'Start Processing' }).click();
+    await expect(page.getByRole('button', { name: 'Download ZIP' })).toBeEnabled();
+    await expect(page.getByText('3/3')).toBeVisible();
 
-  test('should have preset buttons in settings', async ({ page }) => {
-    // Settings appear after image upload
-    // This is a smoke test for page structure
-    await expect(page.getByText('Compress images.')).toBeVisible();
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download ZIP' }).click();
+    expect((await download).suggestedFilename()).toMatch(/^zippix_.*\.zip$/);
   });
 });

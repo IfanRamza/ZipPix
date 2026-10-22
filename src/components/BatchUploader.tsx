@@ -1,17 +1,12 @@
+import { ACCEPTED_TYPES } from '@/components/ImageUploader';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { validateFileSignature } from '@/lib/security';
-import { validateFileType } from '@/lib/utils';
+import { cn, validateFileType } from '@/lib/utils';
 import { useBatchStats, useBatchStore } from '@/store/batchStore';
-import { AlertTriangle, ImagePlus, Upload, XCircle } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { AlertTriangle, ImagePlus, Images } from 'lucide-react';
+import { useRef, useState, type DragEvent } from 'react';
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 interface BatchUploaderProps {
   compact?: boolean;
@@ -19,229 +14,128 @@ interface BatchUploaderProps {
 
 export function BatchUploader({ compact = false }: BatchUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [rejectedCount, setRejectedCount] = useState(0);
-  const [showRejectionWarning, setShowRejectionWarning] = useState(false);
-  const [showBlockDialog, setShowBlockDialog] = useState(false);
-  const [blockedCount, setBlockedCount] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { addItems } = useBatchStore();
-  const { canAddMore, remainingSlots, total, maxSize } = useBatchStats();
+  const addItems = useBatchStore((s) => s.addItems);
+  const { canAddMore, remainingSlots, maxSize } = useBatchStats();
 
-  const handleFiles = useCallback(
-    async (files: FileList | null) => {
-      if (!files) return;
+  const showNotice = (message: string) => {
+    setNotice(message);
+    setTimeout(() => setNotice(null), 5000);
+  };
 
-      // Validate MIME type + magic bytes for each file
-      const fileArray = Array.from(files).filter((file) => validateFileType(file));
+  const handleFiles = async (list: FileList | null) => {
+    if (!list?.length) return;
+    const candidates = Array.from(list).filter(
+      (f) => validateFileType(f) && f.size <= MAX_FILE_SIZE,
+    );
 
-      if (fileArray.length === 0) return;
+    // Verify magic bytes in parallel (only reads the first 12 bytes of each file)
+    const checks = await Promise.all(
+      candidates.map((f) => validateFileSignature(f).catch(() => false)),
+    );
+    const verified = candidates.filter((_, i) => checks[i]);
+    const invalid = list.length - verified.length;
 
-      // Verify magic bytes for security (prevents extension spoofing)
-      const verifiedFiles: File[] = [];
-      for (const file of fileArray) {
-        try {
-          const isValid = await validateFileSignature(file);
-          if (isValid) {
-            verifiedFiles.push(file);
-          }
-        } catch {
-          // Reject files that fail validation
-        }
-      }
+    const { added, rejected } = addItems(verified);
+    const parts: string[] = [];
+    if (invalid > 0) parts.push(`${invalid} unsupported or invalid`);
+    if (rejected > 0) parts.push(`${rejected} over the ${maxSize}-image limit`);
+    if (parts.length) showNotice(`Added ${added}. Skipped ${parts.join(', ')}.`);
+  };
 
-      const signatureRejected = fileArray.length - verifiedFiles.length;
-
-      if (verifiedFiles.length === 0) {
-        if (signatureRejected > 0) {
-          setRejectedCount(signatureRejected);
-          setShowRejectionWarning(true);
-          setTimeout(() => setShowRejectionWarning(false), 4000);
-        }
-        return;
-      }
-
-      // If first upload and more than max, block entirely
-      if (total === 0 && verifiedFiles.length > maxSize) {
-        setBlockedCount(verifiedFiles.length);
-        setShowBlockDialog(true);
-        return;
-      }
-
-      // Check if trying to add more than allowed
-      if (!canAddMore) {
-        setRejectedCount(verifiedFiles.length);
-        setShowRejectionWarning(true);
-        setTimeout(() => setShowRejectionWarning(false), 4000);
-        return;
-      }
-
-      const result = addItems(verifiedFiles);
-
-      const totalRejected = result.rejected + signatureRejected;
-      if (totalRejected > 0) {
-        setRejectedCount(totalRejected);
-        setShowRejectionWarning(true);
-        setTimeout(() => setShowRejectionWarning(false), 4000);
-      }
-    },
-    [addItems, canAddMore, total, maxSize],
-  );
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      setIsDragging(false);
-      handleFiles(e.dataTransfer.files);
-    },
-    [handleFiles],
-  );
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
     setIsDragging(false);
+    if (canAddMore) handleFiles(e.dataTransfer.files);
   };
 
-  const handleClick = () => {
-    if (canAddMore) {
-      fileInputRef.current?.click();
-    }
-  };
+  const input = (
+    <input
+      type='file'
+      ref={fileInputRef}
+      className='hidden'
+      accept={ACCEPTED_TYPES}
+      multiple
+      aria-label='Choose images'
+      onChange={(e) => {
+        handleFiles(e.target.files);
+        e.target.value = '';
+      }}
+    />
+  );
+
+  const noticeEl = notice && (
+    <p role='status' className='text-warning flex items-center gap-1.5 text-[13px]'>
+      <AlertTriangle className='size-4 shrink-0' />
+      {notice}
+    </p>
+  );
 
   if (compact) {
     return (
-      <div className='flex items-center gap-2'>
-        <input
-          type='file'
-          ref={fileInputRef}
-          className='hidden'
-          accept='image/jpeg,image/png,image/webp,image/avif,image/gif'
-          multiple
-          onChange={(e) => handleFiles(e.target.files)}
-        />
-        {showRejectionWarning && (
-          <span className='flex items-center gap-1 text-xs text-amber-400'>
-            <AlertTriangle className='h-3 w-3' />
-            {rejectedCount} file{rejectedCount !== 1 ? 's' : ''} rejected (max {maxSize})
-          </span>
-        )}
+      <div className='flex flex-wrap items-center justify-end gap-3'>
+        {input}
+        {noticeEl}
         <Button
-          variant='outline'
-          size='sm'
-          onClick={handleClick}
+          variant='secondary'
+          onClick={() => fileInputRef.current?.click()}
           disabled={!canAddMore}
-          className='cursor-pointer'
         >
-          <ImagePlus className='mr-2 h-4 w-4' />
-          Add Images ({remainingSlots} left)
+          <ImagePlus />
+          Add Images
+          <span className='text-muted-foreground tabular'>({remainingSlots} left)</span>
         </Button>
-
-        {/* Block Dialog for compact mode */}
-        <Dialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
-          <DialogContent className='sm:max-w-md'>
-            <DialogHeader>
-              <DialogTitle className='flex items-center gap-2 text-red-400'>
-                <XCircle className='h-5 w-5' />
-                Too Many Images
-              </DialogTitle>
-              <DialogDescription className='text-base'>
-                You tried to upload <strong>{blockedCount}</strong> images, but the maximum allowed
-                is <strong>{maxSize}</strong>.
-                <br />
-                <br />
-                Please select fewer images and try again.
-              </DialogDescription>
-            </DialogHeader>
-            <Button onClick={() => setShowBlockDialog(false)} className='mt-2 cursor-pointer'>
-              OK
-            </Button>
-          </DialogContent>
-        </Dialog>
       </div>
     );
   }
 
   return (
-    <div className='space-y-2'>
-      <Card
-        className={`relative cursor-pointer overflow-hidden border-2 border-dashed transition-all duration-300 ${
-          isDragging
-            ? 'scale-[1.02] border-cyan-400 bg-cyan-500/10'
-            : 'border-border/50 bg-background/40 hover:border-cyan-500/50'
-        } ${!canAddMore ? 'cursor-not-allowed opacity-50' : ''} `}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onClick={handleClick}
+    <div className='space-y-3'>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false);
+        }}
+        onDrop={onDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={cn(
+          'group bg-card shadow-card cursor-pointer rounded-[28px] p-2 transition-all duration-300',
+          isDragging && 'ring-primary scale-[1.01] ring-4',
+        )}
       >
-        <input
-          type='file'
-          ref={fileInputRef}
-          className='hidden'
-          accept='image/jpeg,image/png,image/webp,image/avif,image/gif'
-          multiple
-          onChange={(e) => handleFiles(e.target.files)}
-        />
-
-        <div className='space-y-4 p-8 text-center'>
-          <div
-            className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full transition-all ${
-              isDragging
-                ? 'scale-110 bg-cyan-500/20 text-cyan-400'
-                : 'bg-muted text-muted-foreground'
-            } `}
+        {input}
+        <div
+          className={cn(
+            'flex flex-col items-center rounded-[22px] border-2 border-dashed px-6 py-14 text-center transition-colors',
+            isDragging
+              ? 'border-primary bg-primary/5'
+              : 'border-hairline group-hover:border-primary/40',
+          )}
+        >
+          <div className='bg-brand mb-5 flex size-16 items-center justify-center rounded-2xl text-white shadow-lg shadow-fuchsia-500/20 transition-transform group-hover:scale-105'>
+            <Images className='size-8' />
+          </div>
+          <h2 className='text-[24px] font-semibold tracking-tight'>Drop up to {maxSize} images</h2>
+          <p className='text-muted-foreground mt-1 mb-7 text-[15px]'>
+            JPEG, PNG, WebP, AVIF or GIF
+          </p>
+          <Button
+            size='lg'
+            className='min-w-44'
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
           >
-            <Upload className='h-8 w-8' />
-          </div>
-
-          <div>
-            <p className='text-lg font-medium'>
-              {total > 0
-                ? `Add up to ${remainingSlots} more images`
-                : `Drop up to ${maxSize} images here`}
-            </p>
-            <p className='text-muted-foreground mt-1 text-sm'>or click to browse</p>
-          </div>
-
-          <p className='text-muted-foreground text-xs'>Supports JPEG, PNG, WebP, AVIF</p>
-        </div>
-      </Card>
-
-      {/* Rejection Warning */}
-      {showRejectionWarning && (
-        <div className='animate-in fade-in flex items-center gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-400 duration-200'>
-          <AlertTriangle className='h-4 w-4' />
-          <span>
-            {rejectedCount} image{rejectedCount !== 1 ? 's' : ''} rejected. Maximum {maxSize} images
-            allowed.
-          </span>
-        </div>
-      )}
-
-      {/* Block Dialog */}
-      <Dialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
-        <DialogContent className='sm:max-w-md'>
-          <DialogHeader>
-            <DialogTitle className='flex items-center gap-2 text-red-400'>
-              <XCircle className='h-5 w-5' />
-              Too Many Images
-            </DialogTitle>
-            <DialogDescription className='text-base'>
-              You tried to upload <strong>{blockedCount}</strong> images, but the maximum allowed is{' '}
-              <strong>{maxSize}</strong>.
-              <br />
-              <br />
-              Please select fewer images and try again.
-            </DialogDescription>
-          </DialogHeader>
-          <Button onClick={() => setShowBlockDialog(false)} className='mt-2 cursor-pointer'>
-            OK
+            Select Images
           </Button>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
+      {noticeEl}
     </div>
   );
 }

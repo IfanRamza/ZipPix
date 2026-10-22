@@ -1,167 +1,158 @@
+import { createThumbnail } from '@/lib/image';
 import { strictSanitizeFilename } from '@/lib/security';
-import type { BatchItem, BatchState } from '@/types';
+import {
+  type BatchItem,
+  type BatchState,
+  type CompressionSettings,
+  DEFAULT_SETTINGS,
+} from '@/types';
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 
-const MAX_BATCH_SIZE = 20;
+export const MAX_BATCH_SIZE = 20;
 
 interface BatchStore extends BatchState {
-  // Actions
+  /** Batch has its own settings so single-image sizes never leak into it */
+  settings: CompressionSettings;
+  updateSettings: (settings: Partial<CompressionSettings>) => void;
+  resetSettings: () => void;
+
   addItems: (files: File[]) => { added: number; rejected: number };
   removeItem: (id: string) => void;
   updateItemFilename: (id: string, filename: string) => void;
-  updateItemDimensions: (id: string, width: number, height: number) => void;
   clearAll: () => void;
   startProcessing: () => void;
   pauseProcessing: () => void;
   resumeProcessing: () => void;
-  setCurrentIndex: (index: number) => void;
-  updateItemStatus: (id: string, status: BatchItem['status'], data?: Partial<BatchItem>) => void;
-  reset: () => void;
+  stopProcessing: () => void;
+  updateItem: (id: string, data: Partial<BatchItem>) => void;
+}
+
+function revokeItem(item: BatchItem) {
+  if (item.thumbnailUrl) URL.revokeObjectURL(item.thumbnailUrl);
 }
 
 export const useBatchStore = create<BatchStore>((set, get) => ({
-  // Initial state
   items: [],
   isProcessing: false,
   isPaused: false,
-  currentIndex: 0,
+  settings: { ...DEFAULT_SETTINGS },
 
-  // Add items to queue - returns count of added and rejected
-  addItems: (files: File[]) => {
-    const state = get();
-    const remaining = MAX_BATCH_SIZE - state.items.length;
+  updateSettings: (newSettings) => {
+    set((state) => ({
+      settings: { ...state.settings, ...newSettings },
+      // Settings changed: finished items are stale and need re-processing
+      items: state.isProcessing
+        ? state.items
+        : state.items.map((item) =>
+            item.status === 'complete' || item.status === 'error'
+              ? { ...item, status: 'queued', compressedBlob: undefined, error: undefined }
+              : item,
+          ),
+    }));
+  },
 
-    if (remaining <= 0) {
-      return { added: 0, rejected: files.length };
-    }
+  resetSettings: () => get().updateSettings({ ...DEFAULT_SETTINGS }),
+
+  addItems: (files) => {
+    const remaining = MAX_BATCH_SIZE - get().items.length;
+    if (remaining <= 0) return { added: 0, rejected: files.length };
 
     const filesToAdd = files.slice(0, remaining);
-    const rejected = files.length - filesToAdd.length;
-
     const newItems: BatchItem[] = filesToAdd.map((file) => {
       const lastDot = file.name.lastIndexOf('.');
       const baseName = lastDot > 0 ? file.name.slice(0, lastDot) : file.name;
-      const sanitized = strictSanitizeFilename(baseName);
       return {
         id: crypto.randomUUID(),
         file,
-        previewUrl: URL.createObjectURL(file),
-        outputFilename: sanitized,
-        status: 'queued' as const,
-        progress: 0,
+        outputFilename: strictSanitizeFilename(baseName),
+        status: 'queued',
       };
     });
 
-    set((state) => ({
-      items: [...state.items, ...newItems],
-    }));
+    set((state) => ({ items: [...state.items, ...newItems] }));
 
-    return { added: filesToAdd.length, rejected };
+    // Generate thumbnails sequentially in the background (one decode per file)
+    void (async () => {
+      for (const item of newItems) {
+        try {
+          const thumb = await createThumbnail(item.file);
+          if (!get().items.some((i) => i.id === item.id)) {
+            URL.revokeObjectURL(thumb.url);
+            continue;
+          }
+          get().updateItem(item.id, {
+            thumbnailUrl: thumb.url,
+            width: thumb.width,
+            height: thumb.height,
+          });
+        } catch {
+          // Thumbnail is cosmetic; compression will surface real decode errors
+        }
+      }
+    })();
+
+    return { added: filesToAdd.length, rejected: files.length - filesToAdd.length };
   },
 
-  // Remove single item
-  removeItem: (id: string) => {
-    const state = get();
-    const item = state.items.find((i) => i.id === id);
-    if (item?.previewUrl) {
-      URL.revokeObjectURL(item.previewUrl);
-    }
-
-    set((state) => ({
-      items: state.items.filter((i) => i.id !== id),
-    }));
+  removeItem: (id) => {
+    const item = get().items.find((i) => i.id === id);
+    if (item) revokeItem(item);
+    set((state) => ({ items: state.items.filter((i) => i.id !== id) }));
   },
 
-  // Update output filename
-  updateItemFilename: (id: string, filename: string) => {
-    set((state) => ({
-      items: state.items.map((item) =>
-        item.id === id ? { ...item, outputFilename: filename } : item,
-      ),
-    }));
+  updateItemFilename: (id, filename) => {
+    get().updateItem(id, { outputFilename: filename });
   },
 
-  // Update item dimensions
-  updateItemDimensions: (id: string, width: number, height: number) => {
-    set((state) => ({
-      items: state.items.map((item) => (item.id === id ? { ...item, width, height } : item)),
-    }));
-  },
-
-  // Clear all items
   clearAll: () => {
-    const state = get();
-    state.items.forEach((item) => {
-      if (item.previewUrl) {
-        URL.revokeObjectURL(item.previewUrl);
-      }
-    });
-
-    set({
-      items: [],
-      isProcessing: false,
-      isPaused: false,
-      currentIndex: 0,
-    });
+    get().items.forEach(revokeItem);
+    set({ items: [], isProcessing: false, isPaused: false });
   },
 
-  // Start processing
-  startProcessing: () => {
-    set({ isProcessing: true, isPaused: false, currentIndex: 0 });
-  },
+  startProcessing: () => set({ isProcessing: true, isPaused: false }),
+  pauseProcessing: () => set({ isPaused: true }),
+  resumeProcessing: () => set({ isPaused: false }),
+  stopProcessing: () => set({ isProcessing: false, isPaused: false }),
 
-  // Pause processing
-  pauseProcessing: () => {
-    set({ isPaused: true });
-  },
-
-  // Resume processing
-  resumeProcessing: () => {
-    set({ isPaused: false });
-  },
-
-  // Set current index
-  setCurrentIndex: (index: number) => {
-    set({ currentIndex: index });
-  },
-
-  // Update item status
-  updateItemStatus: (id: string, status: BatchItem['status'], data?: Partial<BatchItem>) => {
+  updateItem: (id, data) => {
     set((state) => ({
-      items: state.items.map((item) => (item.id === id ? { ...item, status, ...data } : item)),
+      items: state.items.map((item) => (item.id === id ? { ...item, ...data } : item)),
     }));
-  },
-
-  // Full reset
-  reset: () => {
-    const state = get();
-    state.items.forEach((item) => {
-      if (item.previewUrl) {
-        URL.revokeObjectURL(item.previewUrl);
-      }
-    });
-
-    set({
-      items: [],
-      isProcessing: false,
-      isPaused: false,
-      currentIndex: 0,
-    });
   },
 }));
 
-// Selector for batch statistics
-export const useBatchStats = () => {
-  const items = useBatchStore((state) => state.items);
-
-  return {
-    total: items.length,
-    queued: items.filter((i) => i.status === 'queued').length,
-    processing: items.filter((i) => i.status === 'processing').length,
-    complete: items.filter((i) => i.status === 'complete').length,
-    errors: items.filter((i) => i.status === 'error').length,
-    canAddMore: items.length < MAX_BATCH_SIZE,
-    remainingSlots: MAX_BATCH_SIZE - items.length,
-    maxSize: MAX_BATCH_SIZE,
-  };
-};
+// Selector for batch statistics (shallow-compared so unrelated updates don't re-render)
+export const useBatchStats = () =>
+  useBatchStore(
+    useShallow((state) => {
+      const { items } = state;
+      let queued = 0;
+      let processing = 0;
+      let complete = 0;
+      let errors = 0;
+      let originalBytes = 0;
+      let compressedBytes = 0;
+      for (const item of items) {
+        if (item.status === 'queued') queued++;
+        else if (item.status === 'processing') processing++;
+        else if (item.status === 'complete') {
+          complete++;
+          originalBytes += item.file.size;
+          compressedBytes += item.compressedSize ?? 0;
+        } else errors++;
+      }
+      return {
+        total: items.length,
+        queued,
+        processing,
+        complete,
+        errors,
+        originalBytes,
+        compressedBytes,
+        canAddMore: items.length < MAX_BATCH_SIZE,
+        remainingSlots: MAX_BATCH_SIZE - items.length,
+        maxSize: MAX_BATCH_SIZE,
+      };
+    }),
+  );

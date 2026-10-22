@@ -63,6 +63,11 @@ export function generateOutputFilename(
 ): string {
   const lastDot = originalName.lastIndexOf('.');
   const baseName = lastDot > 0 ? originalName.slice(0, lastDot) : originalName;
-  const safeBase = strictSanitizeFilename(baseName);
-  return `${safeBase}_${suffix}.${format}`;
+  // Sanitize with the real extension attached so dots inside the name are not mistaken for one
+  return strictSanitizeFilename(`${baseName}_${suffix}.${format}`);
+}
+
+/** Default output base name (no extension) for a file, e.g. "photo.jpg" → "photo_compressed" */
+export function defaultOutputBase(originalName: string): string {
+  return generateOutputFilename(originalName, 'png').replace(/\.png$/, '');
 }

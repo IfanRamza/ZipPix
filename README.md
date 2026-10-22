@@ -11,9 +11,9 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 ### Core Features
 
 - **🔒 Privacy First** - 100% client-side processing. No server uploads.
-- **🖼️ Modern Formats** - Support for WebP, AVIF, PNG, and JPEG output.
-- **📐 High-Quality Resizing** - Lanczos3 interpolation via `pica` for sharp scaling.
-- **⚡ Smart Presets** - Quick options for Web, Print, Archive, and Max Compression.
+- **🖼️ Modern Formats** - WebP, AVIF, PNG and JPEG output (formats your browser cannot encode are detected and disabled).
+- **📐 Resizing** - Percentage scaling or exact dimensions, applied after crop and rotation without distortion.
+- **⚡ Smart Presets** - Quick options for Web, Smallest, Photo and Lossless.
 - **🔍 Live Comparison** - Interactive split-slider to compare original vs. compressed.
 - **🗑️ Metadata Stripping** - Automatically removes EXIF/IPTC/XMP for privacy.
 
@@ -51,14 +51,14 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 | Category           | Technology                            |
 | ------------------ | ------------------------------------- |
 | Framework          | React 19 + TypeScript                 |
-| Build Tool         | Vite                                  |
+| Build Tool         | Vite 8                                |
 | Styling            | Tailwind CSS v4                       |
-| UI Components      | Shadcn UI (Radix Primitives)          |
+| UI Components      | Radix Primitives (Slider, Switch)     |
 | State Management   | Zustand                               |
-| Image Processing   | Canvas API + Pica + Web Workers       |
+| Image Processing   | OffscreenCanvas + Web Worker pool     |
 | Background Removal | @imgly/background-removal (ONNX/WASM) |
 | Cropping           | react-image-crop                      |
-| ZIP Generation     | JSZip                                 |
+| ZIP Generation     | fflate (lazy-loaded)                  |
 | Icons              | Lucide React                          |
 | Routing            | React Router DOM                      |
 
@@ -119,7 +119,7 @@ npx playwright test
 src/
 ├── components/     # UI components (Navbar, ControlPanel, ImageEditor, etc.)
 ├── hooks/          # Custom React hooks (useCompressionWorker, useBatchProcessor)
-├── lib/            # Utilities (imageProcessor, metadataParser, security, backgroundRemover)
+├── lib/            # Utilities (editPipeline, formats, image, zip, metadataParser, security, backgroundRemover)
 ├── pages/          # Route pages (HomePage, BatchPage, PrivacyPolicy, TermsOfService)
 ├── store/          # Zustand state management (imageStore, batchStore)
 ├── workers/        # Web Workers for compression
