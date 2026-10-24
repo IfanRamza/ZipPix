@@ -1,5 +1,8 @@
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Button } from '@/components/ui/button';
+import { Kbd } from '@/components/ui/kbd';
+import { PASTE_SHORTCUT, usePasteImages } from '@/hooks/usePasteImages';
+import { MAX_FILE_SIZE } from '@/lib/intake';
 import { validateFileSignature } from '@/lib/security';
 import { cn, validateFileType } from '@/lib/utils';
 import { AlertCircle, ImageUp } from 'lucide-react';
@@ -7,13 +10,18 @@ import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from 
 
 interface ImageUploaderProps {
   onUpload: (file: File) => void | Promise<void>;
+  /** Called instead of onUpload when several images are dropped, picked or pasted */
+  onMultiple?: (files: File[]) => void;
   maxSize?: number; // in bytes
 }
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 export const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,image/avif,image/gif';
 
-export function ImageUploader({ onUpload, maxSize = MAX_FILE_SIZE }: ImageUploaderProps) {
+export function ImageUploader({
+  onUpload,
+  onMultiple,
+  maxSize = MAX_FILE_SIZE,
+}: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,16 +69,24 @@ export function ImageUploader({ onUpload, maxSize = MAX_FILE_SIZE }: ImageUpload
     setIsDragging(false);
   };
 
+  // Several files at once belong in batch mode, when the page offers it
+  const handleFiles = (list: FileList | File[] | null | undefined) => {
+    const files = Array.from(list ?? []);
+    if (isVerifying || !files.length) return;
+    if (files.length > 1 && onMultiple) onMultiple(files);
+    else void processFile(files[0]);
+  };
+
+  usePasteImages(handleFiles);
+
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!isVerifying && file) processFile(file);
+    handleFiles(e.dataTransfer.files);
   };
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processFile(file);
+    handleFiles(e.target.files);
     e.target.value = '';
   };
 
@@ -93,6 +109,7 @@ export function ImageUploader({ onUpload, maxSize = MAX_FILE_SIZE }: ImageUpload
         ref={fileInputRef}
         className='hidden'
         accept={ACCEPTED_TYPES}
+        multiple={!!onMultiple}
         onChange={handleFileSelect}
         disabled={isVerifying}
         aria-label='Choose an image'
@@ -122,6 +139,9 @@ export function ImageUploader({ onUpload, maxSize = MAX_FILE_SIZE }: ImageUpload
         </h2>
         <p className='text-muted-foreground mt-1 mb-7 text-[15px]'>
           JPEG, PNG, WebP, AVIF or GIF — up to {Math.round(maxSize / 1024 / 1024)} MB
+          <span className='mt-1 block'>
+            or paste with <Kbd>{PASTE_SHORTCUT}</Kbd>
+          </span>
         </p>
 
         <Button

@@ -1,12 +1,12 @@
 import { ACCEPTED_TYPES } from '@/components/ImageUploader';
 import { Button } from '@/components/ui/button';
-import { validateFileSignature } from '@/lib/security';
-import { cn, validateFileType } from '@/lib/utils';
+import { Kbd } from '@/components/ui/kbd';
+import { PASTE_SHORTCUT, usePasteImages } from '@/hooks/usePasteImages';
+import { verifyImageFiles } from '@/lib/intake';
+import { cn } from '@/lib/utils';
 import { useBatchStats, useBatchStore } from '@/store/batchStore';
 import { AlertTriangle, ImagePlus, Images } from 'lucide-react';
 import { useRef, useState, type DragEvent } from 'react';
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 interface BatchUploaderProps {
   compact?: boolean;
@@ -24,18 +24,9 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
     setTimeout(() => setNotice(null), 5000);
   };
 
-  const handleFiles = async (list: FileList | null) => {
+  const handleFiles = async (list: FileList | File[] | null) => {
     if (!list?.length) return;
-    const candidates = Array.from(list).filter(
-      (f) => validateFileType(f) && f.size <= MAX_FILE_SIZE,
-    );
-
-    // Verify magic bytes in parallel (only reads the first 12 bytes of each file)
-    const checks = await Promise.all(
-      candidates.map((f) => validateFileSignature(f).catch(() => false)),
-    );
-    const verified = candidates.filter((_, i) => checks[i]);
-    const invalid = list.length - verified.length;
+    const { verified, invalid } = await verifyImageFiles(Array.from(list));
 
     const { added, rejected } = addItems(verified);
     const parts: string[] = [];
@@ -44,10 +35,15 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
     if (parts.length) showNotice(`Added ${added}. Skipped ${parts.join(', ')}.`);
   };
 
+  usePasteImages((files) => {
+    if (canAddMore) void handleFiles(files);
+    else showNotice(`The batch is full (${maxSize} images).`);
+  });
+
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    if (canAddMore) handleFiles(e.dataTransfer.files);
+    if (canAddMore) void handleFiles(e.dataTransfer.files);
   };
 
   const input = (
@@ -121,7 +117,7 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
           </div>
           <h2 className='text-[24px] font-semibold tracking-tight'>Drop up to {maxSize} images</h2>
           <p className='text-muted-foreground mt-1 mb-7 text-[15px]'>
-            JPEG, PNG, WebP, AVIF or GIF
+            JPEG, PNG, WebP, AVIF or GIF · or paste with <Kbd>{PASTE_SHORTCUT}</Kbd>
           </p>
           <Button
             size='lg'

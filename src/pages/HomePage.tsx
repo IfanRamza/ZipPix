@@ -9,15 +9,19 @@ import { Hero, PageShell } from '@/components/PageShell';
 import { StatsDisplay } from '@/components/StatsDisplay';
 import { Button } from '@/components/ui/button';
 import { useCompressionWorker } from '@/hooks/useCompressionWorker';
+import { usePasteImages } from '@/hooks/usePasteImages';
 import { getEditedSize } from '@/lib/editPipeline';
 import { formatLabel, getFileExtension } from '@/lib/formats';
 import { downloadFile } from '@/lib/image';
+import { MAX_FILE_SIZE, verifyImageFiles } from '@/lib/intake';
 import { validateFileSignature } from '@/lib/security';
 import { defaultOutputBase, validateFileType } from '@/lib/utils';
+import { useBatchStore } from '@/store/batchStore';
 import { useImageStore } from '@/store/imageStore';
 import type { EditState } from '@/types';
 import { AlertTriangle, Download, ImagePlus, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 
 // The editor pulls in react-image-crop; load it only when opened
@@ -57,6 +61,7 @@ export function HomePage() {
     originalImage ? defaultOutputBase(originalImage.file.name) : '',
   );
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
   const { compress } = useCompressionWorker();
 
   // Re-compress whenever the image, settings or edits change
@@ -70,13 +75,27 @@ export function HomePage() {
   };
 
   const handleReplace = async (file?: File) => {
-    if (!file || !validateFileType(file) || file.size > 50 * 1024 * 1024) return;
+    if (!file || !validateFileType(file) || file.size > MAX_FILE_SIZE) return;
     try {
       if (await validateFileSignature(file)) await handleUpload(file);
     } catch (error) {
       console.warn('Could not open image', error);
     }
   };
+
+  // Several images at once: hand them to batch mode instead of dropping all but one
+  const sendToBatch = async (files: File[]) => {
+    const { verified } = await verifyImageFiles(files);
+    if (!verified.length) return;
+    useBatchStore.getState().addItems(verified);
+    navigate('/batch');
+  };
+
+  // With an image open, pasting replaces it (the uploader handles paste before that)
+  usePasteImages(
+    (files) => void (files.length > 1 ? sendToBatch(files) : handleReplace(files[0])),
+    !!originalImage && !isEditing,
+  );
 
   const editedSize = useMemo(
     () => (originalImage ? getEditedSize(originalImage.dimensions, editState) : undefined),
@@ -98,7 +117,7 @@ export function HomePage() {
           subtitle='Compress, resize and convert right in your browser.'
         />
         <div className='motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 mx-auto mt-10 max-w-2xl duration-700'>
-          <ImageUploader onUpload={handleUpload} />
+          <ImageUploader onUpload={handleUpload} onMultiple={sendToBatch} />
         </div>
         <FeatureGrid className='mx-auto mt-16 max-w-4xl' />
       </PageShell>
@@ -208,6 +227,7 @@ export function HomePage() {
             onSettingsChange={updateSettings}
             sourceDimensions={editedSize}
             onReset={resetSettings}
+            result={compressed ?? undefined}
           />
 
           <div className='bg-card shadow-card space-y-4 rounded-3xl p-4'>
