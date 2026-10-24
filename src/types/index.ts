@@ -13,6 +13,8 @@ export interface CompressionSettings {
   maintainAspectRatio: boolean;
   /** Max output size in bytes. Lossy formats only: the encoder picks the highest quality that fits. */
   targetSize?: number;
+  /** PNG only: reduce to at most this many colours (2–256) before encoding. Off when unset. */
+  paletteColors?: number;
 }
 
 export const DEFAULT_SETTINGS: CompressionSettings = {

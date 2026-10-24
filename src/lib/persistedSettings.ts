@@ -1,3 +1,4 @@
+import { MAX_PALETTE_COLORS, MIN_PALETTE_COLORS } from '@/lib/palette';
 import type { CompressionSettings, SupportedFormat } from '@/types';
 import { createJSONStorage, type PersistOptions, type StateStorage } from 'zustand/middleware';
 
@@ -25,6 +26,9 @@ export function sanitizeSettings(raw: unknown): Partial<CompressionSettings> {
   if (SCALES.includes(r.scale as number)) out.scale = r.scale as number;
   if (typeof r.maintainAspectRatio === 'boolean') out.maintainAspectRatio = r.maintainAspectRatio;
   if (isIntIn(r.targetSize, 1024, MAX_TARGET_KB * 1024)) out.targetSize = r.targetSize;
+  if (isIntIn(r.paletteColors, MIN_PALETTE_COLORS, MAX_PALETTE_COLORS)) {
+    out.paletteColors = r.paletteColors;
+  }
   return out;
 }
 

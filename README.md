@@ -13,6 +13,7 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 - **🔒 Privacy First** - 100% client-side processing. No server uploads.
 - **🖼️ Modern Formats** - WebP, AVIF, PNG and JPEG output (formats your browser cannot encode are detected and disabled).
 - **🗜️ Better Encoders** - MozJPEG and OxiPNG (WASM, the same codecs Squoosh uses) for JPEG and PNG, falling back to the browser encoder if they can't load.
+- **🎨 Reduce Colours** - Quantize PNGs to 2–256 colours (like TinyPNG) for screenshots and graphics up to ~80% smaller.
 - **📉 Never Larger** - If re-encoding wouldn't shrink an unedited image, ZipPix hands back your original (only when it has no metadata to strip).
 - **📱 HEIC Input** - iPhone photos (HEIC/HEIF) are decoded in the browser, so they work in every browser, not just Safari.
 - **📐 Resizing** - Percentage scaling or exact dimensions, applied after crop and rotation without distortion.

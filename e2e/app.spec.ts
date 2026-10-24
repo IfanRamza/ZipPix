@@ -185,6 +185,34 @@ test.describe('Single image flow', () => {
     expect(size).toBeLessThanOrEqual(40 * 1024);
   });
 
+  test('reducing PNG colours shrinks the file', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'noisy.png',
+      mimeType: 'image/png',
+      buffer: makePng(200, 150, true),
+    });
+    await page.getByRole('radio', { name: 'PNG' }).click();
+    await expect(page.getByText('PNG · 200×150').nth(1)).toBeVisible();
+    const sizeText = page
+      .getByText('Compressed', { exact: true })
+      .locator('xpath=..')
+      .locator('p')
+      .nth(1);
+    const lossless = await sizeText.textContent();
+
+    await page.getByRole('switch', { name: 'Reduce colours' }).click();
+    await expect(page.getByRole('slider', { name: 'Colours' })).toBeVisible();
+    await expect(sizeText).not.toHaveText(lossless!);
+    await expect(page.getByText(/Photos may show banding/)).toBeVisible();
+    // Random noise has ~30k colours; 256 of them fit in a third of the bytes
+    const toBytes = (t: string) => {
+      const [n, unit] = t.split(' ');
+      return Number(n) * ({ Bytes: 1, KB: 1024, MB: 1024 ** 2 }[unit] ?? 1);
+    };
+    expect(toBytes((await sizeText.textContent())!)).toBeLessThan(toBytes(lossless!) / 2);
+  });
+
   test('keeps the original when re-encoding would not make it smaller', async ({ page }) => {
     await page.goto('/');
     await page.locator('input[type="file"]').setInputFiles({

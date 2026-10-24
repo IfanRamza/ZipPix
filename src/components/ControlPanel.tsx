@@ -4,6 +4,7 @@ import { SegmentedControl } from '@/components/ui/segmented';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { detectEncodeSupport } from '@/lib/formats';
+import { MAX_PALETTE_COLORS, MIN_PALETTE_COLORS } from '@/lib/palette';
 import { MAX_TARGET_KB } from '@/lib/persistedSettings';
 import { cn } from '@/lib/utils';
 import type {
@@ -30,7 +31,7 @@ const PRESETS: { label: string; settings: Partial<CompressionSettings> }[] = [
   { label: 'Web', settings: { format: 'webp', quality: 82 } },
   { label: 'Smallest', settings: { format: 'webp', quality: 60 } },
   { label: 'Photo', settings: { format: 'jpeg', quality: 88 } },
-  { label: 'Lossless', settings: { format: 'png' } },
+  { label: 'Lossless', settings: { format: 'png', paletteColors: undefined } },
 ];
 
 const SCALES = ['25', '50', '75', '100', '200'] as const;
@@ -44,7 +45,7 @@ const FORMAT_LABELS: Record<SupportedFormat, string> = {
 
 const FORMAT_HINTS: Record<SupportedFormat, string> = {
   jpeg: 'Best compatibility for photos. No transparency.',
-  png: 'Lossless with transparency. Largest files.',
+  png: 'Transparency and sharp edges. Best for screenshots and graphics.',
   webp: 'Small files with transparency. Supported everywhere modern.',
   avif: 'Smallest files. Slower to encode; first use downloads a 3 MB encoder.',
 };
@@ -112,9 +113,16 @@ export function ControlPanel({
     400,
   );
 
+  const [colors, setColors] = useDebouncedCommit(settings.paletteColors, (c) =>
+    onSettingsChange({ paletteColors: c }),
+  );
+
   let qualityFooter: ReactNode = 'Lower quality means a smaller file.';
-  if (lossless) qualityFooter = 'PNG is lossless, so quality does not apply.';
-  else if (targetMode && !result?.quality) {
+  if (lossless && settings.paletteColors) {
+    qualityFooter = 'Much smaller screenshots and graphics. Photos may show banding.';
+  } else if (lossless) {
+    qualityFooter = 'PNG is lossless. Reduce colours for a much smaller file.';
+  } else if (targetMode && !result?.quality) {
     qualityFooter = 'Picks the highest quality that fits.';
   } else if (targetMode && result?.reusedSource && result.targetMet) {
     qualityFooter = 'Your original already fits, so it is kept as-is.';
@@ -132,6 +140,7 @@ export function ControlPanel({
   const activePreset = PRESETS.find(
     (p) =>
       !settings.targetSize &&
+      !(settings.format === 'png' && settings.paletteColors) &&
       p.settings.format === settings.format &&
       (p.settings.quality === undefined || p.settings.quality === settings.quality),
   )?.label;
@@ -239,7 +248,32 @@ export function ControlPanel({
             />
           </div>
         )}
-        {targetMode ? (
+        {lossless ? (
+          <>
+            <GroupRow label='Reduce colours' htmlFor='reduce-palette'>
+              <Switch
+                id='reduce-palette'
+                checked={!!settings.paletteColors}
+                onCheckedChange={(checked) =>
+                  onSettingsChange({ paletteColors: checked ? MAX_PALETTE_COLORS : undefined })
+                }
+              />
+            </GroupRow>
+            {colors !== undefined && (
+              <div className='flex items-center gap-4 px-4 py-3'>
+                <Slider
+                  aria-label='Colours'
+                  value={[colors]}
+                  onValueChange={([v]) => setColors(v)}
+                  min={MIN_PALETTE_COLORS}
+                  max={MAX_PALETTE_COLORS}
+                  step={1}
+                />
+                <span className='tabular w-10 text-right text-[15px] font-medium'>{colors}</span>
+              </div>
+            )}
+          </>
+        ) : targetMode ? (
           <label className='flex items-center gap-3 px-4 py-3'>
             <span className='text-[15px]'>Max size</span>
             <Input
@@ -255,12 +289,7 @@ export function ControlPanel({
             <span className='text-muted-foreground text-[15px]'>KB</span>
           </label>
         ) : (
-          <div
-            className={cn(
-              'flex items-center gap-4 px-4 py-3',
-              lossless && 'pointer-events-none opacity-40',
-            )}
-          >
+          <div className='flex items-center gap-4 px-4 py-3'>
             <Slider
               aria-label='Quality'
               value={[quality]}
@@ -268,7 +297,6 @@ export function ControlPanel({
               min={1}
               max={100}
               step={1}
-              disabled={lossless}
             />
             <span className='tabular w-10 text-right text-[15px] font-medium'>{quality}</span>
           </div>

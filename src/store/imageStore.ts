@@ -136,6 +136,7 @@ export const useImageStore = create<AppState>()(
       'format',
       'quality',
       'targetSize',
+      'paletteColors',
       'maintainAspectRatio',
     ]),
   ),

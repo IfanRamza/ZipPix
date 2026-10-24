@@ -141,6 +141,7 @@ export const useBatchStore = create<BatchStore>()(
       'quality',
       'scale',
       'targetSize',
+      'paletteColors',
       'maintainAspectRatio',
     ]),
   ),

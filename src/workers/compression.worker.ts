@@ -6,6 +6,7 @@ import {
   renderEdited,
 } from '@/lib/editPipeline';
 import { getMimeType } from '@/lib/formats';
+import { reducePalette } from '@/lib/palette';
 import { shouldReuseSource } from '@/lib/sourceReuse';
 import { encodeToTarget } from '@/lib/targetSize';
 import type { SupportedFormat, TargetSizeResult } from '@/types';
@@ -118,6 +119,12 @@ async function processImage({ source, cacheKey, settings, editState }: Compressi
 
     // Read the pixels once, however many encodes target-size mode needs
     let imageData: ImageData | null = null;
+    const paletteColors = settings.format === 'png' ? settings.paletteColors : undefined;
+    if (paletteColors) {
+      imageData = await reducePalette(ctx.getImageData(0, 0, out.width, out.height), paletteColors);
+      // The canvas fallback encoder must see the reduced pixels too
+      ctx.putImageData(imageData, 0, 0);
+    }
     const pixels = () => (imageData ??= ctx.getImageData(0, 0, out.width, out.height));
     const encodeAt = (q: number) => encode(canvas, pixels, settings.format, q);
 
@@ -133,8 +140,9 @@ async function processImage({ source, cacheKey, settings, editState }: Compressi
       blob = await encodeAt(settings.quality);
     }
 
-    // Background removal is already baked into `source`, so only these edits change pixels
+    // Background removal is already baked into `source`, so only these steps change pixels
     const pixelsUnchanged =
+      !paletteColors &&
       !(editState && (hasGeometryEdits(editState) || hasColorAdjustments(editState))) &&
       out.width === bitmap.width &&
       out.height === bitmap.height;

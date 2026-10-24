@@ -11,6 +11,7 @@ describe('sanitizeSettings', () => {
         scale: 50,
         maintainAspectRatio: false,
         targetSize: 200 * 1024,
+        paletteColors: 64,
       }),
     ).toEqual({
       format: 'avif',
@@ -18,6 +19,7 @@ describe('sanitizeSettings', () => {
       scale: 50,
       maintainAspectRatio: false,
       targetSize: 200 * 1024,
+      paletteColors: 64,
     });
   });
 
@@ -32,6 +34,8 @@ describe('sanitizeSettings', () => {
       }),
     ).toEqual({});
     expect(sanitizeSettings({ quality: 50.5, targetSize: -1 })).toEqual({});
+    expect(sanitizeSettings({ paletteColors: 1 })).toEqual({});
+    expect(sanitizeSettings({ paletteColors: 257 })).toEqual({});
   });
 
   test('ignores non-objects', () => {
