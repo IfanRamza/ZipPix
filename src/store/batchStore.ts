@@ -1,5 +1,6 @@
 import { createThumbnail } from '@/lib/image';
 import { sourceOf } from '@/lib/intake';
+import { persistSettings } from '@/lib/persistedSettings';
 import { strictSanitizeFilename } from '@/lib/security';
 import {
   type BatchItem,
@@ -8,6 +9,7 @@ import {
   DEFAULT_SETTINGS,
 } from '@/types';
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 
 export const MAX_BATCH_SIZE = 20;
@@ -33,103 +35,115 @@ function revokeItem(item: BatchItem) {
   if (item.thumbnailUrl) URL.revokeObjectURL(item.thumbnailUrl);
 }
 
-export const useBatchStore = create<BatchStore>((set, get) => ({
-  items: [],
-  isProcessing: false,
-  isPaused: false,
-  settings: { ...DEFAULT_SETTINGS },
+export const useBatchStore = create<BatchStore>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      isProcessing: false,
+      isPaused: false,
+      settings: { ...DEFAULT_SETTINGS },
 
-  updateSettings: (newSettings) => {
-    set((state) => ({
-      settings: { ...state.settings, ...newSettings },
-      // Settings changed: finished items are stale and need re-processing
-      items: state.isProcessing
-        ? state.items
-        : state.items.map((item) =>
-            item.status === 'complete' || item.status === 'error'
-              ? {
-                  ...item,
-                  status: 'queued',
-                  compressedBlob: undefined,
-                  quality: undefined,
-                  targetMet: undefined,
-                  error: undefined,
-                }
-              : item,
-          ),
-    }));
-  },
+      updateSettings: (newSettings) => {
+        set((state) => ({
+          settings: { ...state.settings, ...newSettings },
+          // Settings changed: finished items are stale and need re-processing
+          items: state.isProcessing
+            ? state.items
+            : state.items.map((item) =>
+                item.status === 'complete' || item.status === 'error'
+                  ? {
+                      ...item,
+                      status: 'queued',
+                      compressedBlob: undefined,
+                      quality: undefined,
+                      targetMet: undefined,
+                      error: undefined,
+                    }
+                  : item,
+              ),
+        }));
+      },
 
-  // DEFAULT_SETTINGS has no targetSize key, so clear it explicitly to leave target mode
-  resetSettings: () => get().updateSettings({ ...DEFAULT_SETTINGS, targetSize: undefined }),
+      // DEFAULT_SETTINGS has no targetSize key, so clear it explicitly to leave target mode
+      resetSettings: () => get().updateSettings({ ...DEFAULT_SETTINGS, targetSize: undefined }),
 
-  addItems: (files) => {
-    const remaining = MAX_BATCH_SIZE - get().items.length;
-    if (remaining <= 0) return { added: 0, rejected: files.length };
+      addItems: (files) => {
+        const remaining = MAX_BATCH_SIZE - get().items.length;
+        if (remaining <= 0) return { added: 0, rejected: files.length };
 
-    const filesToAdd = files.slice(0, remaining);
-    const newItems: BatchItem[] = filesToAdd.map((file) => {
-      const lastDot = file.name.lastIndexOf('.');
-      const baseName = lastDot > 0 ? file.name.slice(0, lastDot) : file.name;
-      return {
-        id: crypto.randomUUID(),
-        file,
-        outputFilename: strictSanitizeFilename(baseName),
-        status: 'queued',
-      };
-    });
+        const filesToAdd = files.slice(0, remaining);
+        const newItems: BatchItem[] = filesToAdd.map((file) => {
+          const lastDot = file.name.lastIndexOf('.');
+          const baseName = lastDot > 0 ? file.name.slice(0, lastDot) : file.name;
+          return {
+            id: crypto.randomUUID(),
+            file,
+            outputFilename: strictSanitizeFilename(baseName),
+            status: 'queued',
+          };
+        });
 
-    set((state) => ({ items: [...state.items, ...newItems] }));
+        set((state) => ({ items: [...state.items, ...newItems] }));
 
-    // Generate thumbnails sequentially in the background (one decode per file)
-    void (async () => {
-      for (const item of newItems) {
-        try {
-          const thumb = await createThumbnail(item.file);
-          if (!get().items.some((i) => i.id === item.id)) {
-            URL.revokeObjectURL(thumb.url);
-            continue;
+        // Generate thumbnails sequentially in the background (one decode per file)
+        void (async () => {
+          for (const item of newItems) {
+            try {
+              const thumb = await createThumbnail(item.file);
+              if (!get().items.some((i) => i.id === item.id)) {
+                URL.revokeObjectURL(thumb.url);
+                continue;
+              }
+              get().updateItem(item.id, {
+                thumbnailUrl: thumb.url,
+                width: thumb.width,
+                height: thumb.height,
+              });
+            } catch {
+              // Thumbnail is cosmetic; compression will surface real decode errors
+            }
           }
-          get().updateItem(item.id, {
-            thumbnailUrl: thumb.url,
-            width: thumb.width,
-            height: thumb.height,
-          });
-        } catch {
-          // Thumbnail is cosmetic; compression will surface real decode errors
-        }
-      }
-    })();
+        })();
 
-    return { added: filesToAdd.length, rejected: files.length - filesToAdd.length };
-  },
+        return { added: filesToAdd.length, rejected: files.length - filesToAdd.length };
+      },
 
-  removeItem: (id) => {
-    const item = get().items.find((i) => i.id === id);
-    if (item) revokeItem(item);
-    set((state) => ({ items: state.items.filter((i) => i.id !== id) }));
-  },
+      removeItem: (id) => {
+        const item = get().items.find((i) => i.id === id);
+        if (item) revokeItem(item);
+        set((state) => ({ items: state.items.filter((i) => i.id !== id) }));
+      },
 
-  updateItemFilename: (id, filename) => {
-    get().updateItem(id, { outputFilename: filename });
-  },
+      updateItemFilename: (id, filename) => {
+        get().updateItem(id, { outputFilename: filename });
+      },
 
-  clearAll: () => {
-    get().items.forEach(revokeItem);
-    set({ items: [], isProcessing: false, isPaused: false });
-  },
+      clearAll: () => {
+        get().items.forEach(revokeItem);
+        set({ items: [], isProcessing: false, isPaused: false });
+      },
 
-  startProcessing: () => set({ isProcessing: true, isPaused: false }),
-  pauseProcessing: () => set({ isPaused: true }),
-  resumeProcessing: () => set({ isPaused: false }),
-  stopProcessing: () => set({ isProcessing: false, isPaused: false }),
+      startProcessing: () => set({ isProcessing: true, isPaused: false }),
+      pauseProcessing: () => set({ isPaused: true }),
+      resumeProcessing: () => set({ isPaused: false }),
+      stopProcessing: () => set({ isProcessing: false, isPaused: false }),
 
-  updateItem: (id, data) => {
-    set((state) => ({
-      items: state.items.map((item) => (item.id === id ? { ...item, ...data } : item)),
-    }));
-  },
-}));
+      updateItem: (id, data) => {
+        set((state) => ({
+          items: state.items.map((item) => (item.id === id ? { ...item, ...data } : item)),
+        }));
+      },
+    }),
+    // The queue holds Files and can't be stored; only the chosen settings are remembered
+    persistSettings<BatchStore>('zippix:batch-settings', [
+      'format',
+      'quality',
+      'scale',
+      'targetSize',
+      'maintainAspectRatio',
+    ]),
+  ),
+);
 
 // Selector for batch statistics (shallow-compared so unrelated updates don't re-render)
 export const useBatchStats = () =>

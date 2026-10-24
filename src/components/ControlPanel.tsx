@@ -4,6 +4,7 @@ import { SegmentedControl } from '@/components/ui/segmented';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { detectEncodeSupport } from '@/lib/formats';
+import { MAX_TARGET_KB } from '@/lib/persistedSettings';
 import { cn } from '@/lib/utils';
 import type {
   CompressedImageState,
@@ -106,7 +107,7 @@ export function ControlPanel({
     String(Math.round((settings.targetSize ?? DEFAULT_TARGET_KB * 1024) / 1024)),
     (raw) => {
       const kb = parseInt(raw, 10);
-      if (kb > 0) onSettingsChange({ targetSize: Math.min(kb, 100_000) * 1024 });
+      if (kb > 0) onSettingsChange({ targetSize: Math.min(kb, MAX_TARGET_KB) * 1024 });
     },
     400,
   );

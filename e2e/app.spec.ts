@@ -240,3 +240,26 @@ test.describe('Batch target size', () => {
     await expect(page.getByText(/1 image is still over the target size/)).toBeVisible();
   });
 });
+
+test.describe('Remembered settings', () => {
+  test('keeps the chosen format and quality after a reload', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'photo.png',
+      mimeType: 'image/png',
+      buffer: makePng(120, 80),
+    });
+    await expect(page.getByText('WebP · 120×80')).toBeVisible();
+    await page.getByRole('radio', { name: 'JPEG' }).click();
+    await expect(page.getByText('JPEG · 120×80')).toBeVisible();
+
+    await page.reload();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'photo.png',
+      mimeType: 'image/png',
+      buffer: makePng(120, 80),
+    });
+    await expect(page.getByText('JPEG · 120×80')).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'JPEG' })).toBeChecked();
+  });
+});

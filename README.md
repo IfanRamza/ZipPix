@@ -17,6 +17,7 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 - **⚡ Smart Presets** - Quick options for Web, Smallest, Photo and Lossless.
 - **🔍 Live Comparison** - Interactive split-slider to compare original vs. compressed.
 - **🗑️ Metadata Stripping** - Automatically removes EXIF/IPTC/XMP for privacy.
+- **💾 Remembered Settings** - Your last format, quality and target size are kept in the browser for next time.
 
 ### Image Editing (Non-Destructive)
 
