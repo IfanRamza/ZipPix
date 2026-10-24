@@ -1,3 +1,5 @@
+import { ftypBrand, isHeicBrand } from '@/lib/heic';
+
 /**
  * Security utilities for file validation and sanitization
  */
@@ -75,14 +77,12 @@ export async function validateFileSignature(file: File): Promise<boolean> {
     return true;
   }
 
-  // Check AVIF (ISO BMFF container with AVIF brand)
+  // Check AVIF / HEIC (ISO BMFF container)
   // 4-7: ftyp (66 74 79 70)
-  // 8-11: brand — must be 'avif', 'avis', or 'mif1'
-  if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
-    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
-    if (brand === 'avif' || brand === 'avis' || brand === 'mif1') {
-      return true;
-    }
+  // 8-11: brand — 'avif', 'avis', the generic 'mif1'/'msf1', or a HEIC brand
+  const brand = ftypBrand(bytes);
+  if (brand && (['avif', 'avis', 'mif1', 'msf1'].includes(brand) || isHeicBrand(brand))) {
+    return true;
   }
 
   return false;

@@ -20,6 +20,8 @@ const LABELS: Record<string, string> = {
   'image/webp': 'WebP',
   'image/avif': 'AVIF',
   'image/gif': 'GIF',
+  'image/heic': 'HEIC',
+  'image/heif': 'HEIF',
   jpeg: 'JPEG',
   png: 'PNG',
   webp: 'WebP',

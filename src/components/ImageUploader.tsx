@@ -2,9 +2,8 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { PASTE_SHORTCUT, usePasteImages } from '@/hooks/usePasteImages';
-import { MAX_FILE_SIZE } from '@/lib/intake';
-import { validateFileSignature } from '@/lib/security';
-import { cn, validateFileType } from '@/lib/utils';
+import { INTAKE_MESSAGES, MAX_FILE_SIZE, prepareImage } from '@/lib/intake';
+import { cn } from '@/lib/utils';
 import { AlertCircle, ImageUp } from 'lucide-react';
 import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 
@@ -15,7 +14,8 @@ interface ImageUploaderProps {
   maxSize?: number; // in bytes
 }
 
-export const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,image/avif,image/gif';
+export const ACCEPTED_TYPES =
+  'image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif,.heic,.heif';
 
 export function ImageUploader({
   onUpload,
@@ -30,25 +30,19 @@ export function ImageUploader({
   const processFile = useCallback(
     async (file: File) => {
       setError(null);
-
-      // Cheap checks first, before reading any bytes
-      if (!validateFileType(file)) {
-        setError('Unsupported format. Use JPEG, PNG, WebP, AVIF or GIF.');
-        return;
-      }
-      if (file.size > maxSize) {
-        setError(`File is larger than ${Math.round(maxSize / 1024 / 1024)} MB.`);
-        return;
-      }
-
       setIsVerifying(true);
       try {
-        // Security: verify magic bytes so a renamed file can't masquerade as an image
-        if (!(await validateFileSignature(file))) {
-          setError("This file's contents don't match an image format.");
+        // Security: magic bytes are verified so a renamed file can't masquerade as an image
+        const result = await prepareImage(file, maxSize);
+        if (!result.ok) {
+          setError(
+            result.error === 'size'
+              ? `File is larger than ${Math.round(maxSize / 1024 / 1024)} MB.`
+              : INTAKE_MESSAGES[result.error],
+          );
           return;
         }
-        await onUpload(file);
+        await onUpload(result.file);
       } catch (e) {
         console.warn('Upload failed', e);
         setError('This image could not be opened. It may be corrupted or empty.');
@@ -138,7 +132,7 @@ export function ImageUploader({
           {isVerifying ? 'Opening…' : isDragging ? 'Drop to start' : 'Drop your image here'}
         </h2>
         <p className='text-muted-foreground mt-1 mb-7 text-[15px]'>
-          JPEG, PNG, WebP, AVIF or GIF — up to {Math.round(maxSize / 1024 / 1024)} MB
+          JPEG, PNG, WebP, AVIF, GIF or HEIC — up to {Math.round(maxSize / 1024 / 1024)} MB
           <span className='mt-1 block'>
             or paste with <Kbd>{PASTE_SHORTCUT}</Kbd>
           </span>

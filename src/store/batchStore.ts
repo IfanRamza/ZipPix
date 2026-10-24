@@ -1,4 +1,5 @@
 import { createThumbnail } from '@/lib/image';
+import { sourceOf } from '@/lib/intake';
 import { strictSanitizeFilename } from '@/lib/security';
 import {
   type BatchItem,
@@ -138,7 +139,7 @@ export const useBatchStats = () =>
         else if (item.status === 'processing') processing++;
         else if (item.status === 'complete') {
           complete++;
-          originalBytes += item.file.size;
+          originalBytes += sourceOf(item.file).size;
           compressedBytes += item.compressedSize ?? 0;
         } else errors++;
       }

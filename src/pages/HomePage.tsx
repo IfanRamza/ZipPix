@@ -13,9 +13,8 @@ import { usePasteImages } from '@/hooks/usePasteImages';
 import { getEditedSize } from '@/lib/editPipeline';
 import { formatLabel, getFileExtension } from '@/lib/formats';
 import { downloadFile } from '@/lib/image';
-import { MAX_FILE_SIZE, verifyImageFiles } from '@/lib/intake';
-import { validateFileSignature } from '@/lib/security';
-import { defaultOutputBase, validateFileType } from '@/lib/utils';
+import { prepareImage, sourceOf, verifyImageFiles } from '@/lib/intake';
+import { defaultOutputBase } from '@/lib/utils';
 import { useBatchStore } from '@/store/batchStore';
 import { useImageStore } from '@/store/imageStore';
 import type { EditState } from '@/types';
@@ -75,9 +74,10 @@ export function HomePage() {
   };
 
   const handleReplace = async (file?: File) => {
-    if (!file || !validateFileType(file) || file.size > MAX_FILE_SIZE) return;
+    if (!file) return;
     try {
-      if (await validateFileSignature(file)) await handleUpload(file);
+      const result = await prepareImage(file);
+      if (result.ok) await handleUpload(result.file);
     } catch (error) {
       console.warn('Could not open image', error);
     }
@@ -213,7 +213,7 @@ export function HomePage() {
             compressedSize={compressed?.size}
             originalDimensions={originalImage.dimensions}
             compressedDimensions={compressed?.dimensions}
-            originalFormat={originalImage.file.type}
+            originalFormat={sourceOf(originalImage.file).type}
             compressedFormat={compressed?.format}
             isCompressing={busy}
           />

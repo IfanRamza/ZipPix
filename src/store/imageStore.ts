@@ -1,6 +1,7 @@
 import { hasEdits } from '@/lib/editPipeline';
 import { formatFromMime } from '@/lib/formats';
 import { getImageDimensions } from '@/lib/image';
+import { sourceOf } from '@/lib/intake';
 import { parseMetadata } from '@/lib/metadataParser';
 import {
   type AppState,
@@ -27,13 +28,15 @@ export const useImageStore = create<AppState>((set, get) => ({
   // Actions
   setOriginalImage: async (file: File) => {
     const previewUrl = URL.createObjectURL(file);
+    // A converted HEIC keeps its metadata and real size on the original upload
+    const source = sourceOf(file);
 
     // Get dimensions and metadata in parallel
     let dimensions, metadata;
     try {
       [dimensions, metadata] = await Promise.all([
         getImageDimensions(previewUrl),
-        parseMetadata(file),
+        parseMetadata(source.file),
       ]);
     } catch (error) {
       URL.revokeObjectURL(previewUrl);
@@ -50,7 +53,7 @@ export const useImageStore = create<AppState>((set, get) => ({
         id: crypto.randomUUID(),
         file,
         previewUrl,
-        size: file.size,
+        size: source.size,
         dimensions,
         metadata: metadata ?? undefined,
       },

@@ -1,5 +1,6 @@
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { formatLabel } from '@/lib/formats';
+import { sourceOf } from '@/lib/intake';
 import { calculateReduction, cn, formatBytes } from '@/lib/utils';
 import { useBatchStore } from '@/store/batchStore';
 import type { BatchItem } from '@/types';
@@ -20,9 +21,10 @@ const BatchQueueItem = memo(function BatchQueueItem({
   onRemove,
   onRename,
 }: BatchQueueItemProps) {
+  const source = sourceOf(item.file);
   const reduction =
     item.status === 'complete' && item.compressedSize !== undefined
-      ? calculateReduction(item.file.size, item.compressedSize)
+      ? calculateReduction(source.size, item.compressedSize)
       : null;
 
   return (
@@ -43,10 +45,10 @@ const BatchQueueItem = memo(function BatchQueueItem({
           className='focus-visible:bg-secondary -ml-1 w-full truncate rounded-md bg-transparent px-1 text-[15px] font-medium outline-none disabled:opacity-100'
         />
         <p className='text-muted-foreground tabular truncate text-[12px]'>
-          {formatLabel(item.file.type)}
+          {formatLabel(source.type)}
           {item.width && ` · ${item.width}×${item.height}`}
           {' · '}
-          {formatBytes(item.file.size, 1)}
+          {formatBytes(source.size, 1)}
           {item.status === 'complete' && item.compressedSize !== undefined && (
             <>
               {' → '}

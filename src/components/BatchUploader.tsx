@@ -1,4 +1,5 @@
 import { ACCEPTED_TYPES } from '@/components/ImageUploader';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
 import { PASTE_SHORTCUT, usePasteImages } from '@/hooks/usePasteImages';
@@ -15,6 +16,7 @@ interface BatchUploaderProps {
 export function BatchUploader({ compact = false }: BatchUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [isOpening, setIsOpening] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addItems = useBatchStore((s) => s.addItems);
   const { canAddMore, remainingSlots, maxSize } = useBatchStats();
@@ -25,14 +27,24 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
   };
 
   const handleFiles = async (list: FileList | File[] | null) => {
-    if (!list?.length) return;
-    const { verified, invalid } = await verifyImageFiles(Array.from(list));
-
-    const { added, rejected } = addItems(verified);
-    const parts: string[] = [];
-    if (invalid > 0) parts.push(`${invalid} unsupported or invalid`);
-    if (rejected > 0) parts.push(`${rejected} over the ${maxSize}-image limit`);
-    if (parts.length) showNotice(`Added ${added}. Skipped ${parts.join(', ')}.`);
+    if (!list?.length || isOpening) return;
+    setIsOpening(true);
+    try {
+      // Stop once the batch is full so extra HEIC files aren't converted for nothing
+      const { verified, invalid, overLimit } = await verifyImageFiles(
+        Array.from(list),
+        remainingSlots,
+      );
+      const { added, rejected } = addItems(verified);
+      const parts: string[] = [];
+      if (invalid > 0) parts.push(`${invalid} unsupported or invalid`);
+      if (rejected + overLimit > 0) {
+        parts.push(`${rejected + overLimit} over the ${maxSize}-image limit`);
+      }
+      if (parts.length) showNotice(`Added ${added}. Skipped ${parts.join(', ')}.`);
+    } finally {
+      setIsOpening(false);
+    }
   };
 
   usePasteImages((files) => {
@@ -55,17 +67,24 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
       multiple
       aria-label='Choose images'
       onChange={(e) => {
-        handleFiles(e.target.files);
+        void handleFiles(e.target.files);
         e.target.value = '';
       }}
     />
   );
 
-  const noticeEl = notice && (
-    <p role='status' className='text-warning flex items-center gap-1.5 text-[13px]'>
-      <AlertTriangle className='size-4 shrink-0' />
-      {notice}
+  const noticeEl = isOpening ? (
+    <p role='status' className='text-muted-foreground flex items-center gap-1.5 text-[13px]'>
+      <LoadingSpinner size={16} />
+      Opening images…
     </p>
+  ) : (
+    notice && (
+      <p role='status' className='text-warning flex items-center gap-1.5 text-[13px]'>
+        <AlertTriangle className='size-4 shrink-0' />
+        {notice}
+      </p>
+    )
   );
 
   if (compact) {
@@ -117,7 +136,7 @@ export function BatchUploader({ compact = false }: BatchUploaderProps) {
           </div>
           <h2 className='text-[24px] font-semibold tracking-tight'>Drop up to {maxSize} images</h2>
           <p className='text-muted-foreground mt-1 mb-7 text-[15px]'>
-            JPEG, PNG, WebP, AVIF or GIF · or paste with <Kbd>{PASTE_SHORTCUT}</Kbd>
+            JPEG, PNG, WebP, AVIF, GIF or HEIC · or paste with <Kbd>{PASTE_SHORTCUT}</Kbd>
           </p>
           <Button
             size='lg'

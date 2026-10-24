@@ -69,8 +69,14 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,webp,png}'],
-        // ONNX runtime (~800 KB) and the AVIF encoder are only needed on demand
-        globIgnores: ['**/ort*.{js,mjs}', '**/avif_enc*.js', '**/*.wasm', '**/icon-*512.png'],
+        // ONNX runtime (~800 KB), the AVIF encoder and the HEIC decoder (~3 MB) load on demand
+        globIgnores: [
+          '**/ort*.{js,mjs}',
+          '**/avif_enc*.js',
+          '**/heic-to*.js',
+          '**/*.wasm',
+          '**/icon-*512.png',
+        ],
       },
       devOptions: {
         enabled: false, // Disable in dev mode
