@@ -9,7 +9,7 @@ export function PrivacyPolicy() {
 
       <div className='text-muted-foreground [&_a]:text-link [&_strong]:text-foreground space-y-8 text-[17px] leading-relaxed [&_strong]:font-semibold'>
         <p className='text-[15px]'>
-          <strong>Last updated:</strong> January 2025
+          <strong>Last updated:</strong> October 2026
         </p>
 
         <section className='space-y-4'>
@@ -32,16 +32,16 @@ export function PrivacyPolicy() {
               happens locally in your browser.
             </li>
             <li>
-              <strong>Image Metadata:</strong> When you use ZipPix to strip metadata, that data is
-              removed locally and never transmitted.
+              <strong>Image Metadata:</strong> EXIF data (camera, GPS location, dates) is read and
+              removed locally. It is never transmitted.
             </li>
             <li>
               <strong>Personal Information:</strong> We don't require accounts, emails, or any
               personal data to use ZipPix.
             </li>
             <li>
-              <strong>Usage Analytics:</strong> We don't track which images you compress or how you
-              use the app.
+              <strong>Image Activity:</strong> We don't track which images you compress or which
+              settings you use.
             </li>
           </ul>
         </section>
@@ -57,8 +57,8 @@ export function PrivacyPolicy() {
           <ul className='list-disc space-y-2 pl-6'>
             <li>Images stay on your device at all times</li>
             <li>Compression happens in your browser's memory</li>
-            <li>No data is sent to external servers</li>
-            <li>Works offline once loaded</li>
+            <li>Your images are never sent to external servers</li>
+            <li>Compression works offline once loaded</li>
           </ul>
         </section>
 
@@ -77,10 +77,27 @@ export function PrivacyPolicy() {
           <h2 className='text-foreground text-[24px] font-semibold tracking-tight'>
             Third-Party Services
           </h2>
-          <p>
-            ZipPix is a standalone application and does not integrate with third-party analytics,
-            advertising, or tracking services.
-          </p>
+          <p>ZipPix has no advertising or cross-site tracking. It does rely on two services:</p>
+          <ul className='list-disc space-y-2 pl-6'>
+            <li>
+              <strong>Cloudflare Web Analytics:</strong> counts page views and measures load
+              performance. It is cookieless, does not fingerprint visitors, and never sees your
+              images. See{' '}
+              <a
+                href='https://www.cloudflare.com/privacypolicy/'
+                className='underline underline-offset-2'
+              >
+                Cloudflare's privacy policy
+              </a>
+              .
+            </li>
+            <li>
+              <strong>IMG.LY CDN (staticimgly.com):</strong> when you first use Remove Background,
+              your browser downloads the AI model (~40 MB) from this CDN. Only the model is
+              downloaded; your image is processed on your device and is never uploaded. The CDN can
+              see your IP address as part of a normal file download.
+            </li>
+          </ul>
         </section>
 
         <section className='space-y-4'>
