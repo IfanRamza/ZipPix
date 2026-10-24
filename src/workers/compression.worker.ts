@@ -1,7 +1,14 @@
-import { getEditedSize, getOutputSize, renderEdited } from '@/lib/editPipeline';
+import {
+  getEditedSize,
+  getOutputSize,
+  hasColorAdjustments,
+  hasGeometryEdits,
+  renderEdited,
+} from '@/lib/editPipeline';
 import { getMimeType } from '@/lib/formats';
+import { shouldReuseSource } from '@/lib/sourceReuse';
 import { encodeToTarget } from '@/lib/targetSize';
-import type { SupportedFormat } from '@/types';
+import type { SupportedFormat, TargetSizeResult } from '@/types';
 import type { CompressionRequest, CompressionResponse } from './protocol';
 
 let nativeAvif: Promise<boolean> | null = null;
@@ -15,17 +22,61 @@ function canvasEncodesAvif(): Promise<boolean> {
   return nativeAvif;
 }
 
+/**
+ * OxiPNG level 2 takes ~2x as long as level 1 for ~7% smaller files: worth it
+ * for screenshots and graphics, but a 12 MP photo would take ~25 s instead of ~12 s.
+ */
+const OXIPNG_LEVEL_2_MAX_PIXELS = 4_000_000;
+
+async function mozJpeg(pixels: ImageData, quality: number): Promise<ArrayBuffer> {
+  const { default: encodeJpeg } = await import('@jsquash/jpeg/encode');
+  return encodeJpeg(pixels, { quality });
+}
+
+async function oxiPng(pixels: ImageData): Promise<ArrayBuffer> {
+  const { default: optimise } = await import('@jsquash/oxipng/optimise');
+  const level = pixels.width * pixels.height <= OXIPNG_LEVEL_2_MAX_PIXELS ? 2 : 1;
+  return optimise(pixels, { level });
+}
+
+/** Codecs whose WASM failed to load (offline before first use, blocked fetch) */
+const unavailable = new Set<SupportedFormat>();
+
+/**
+ * MozJPEG and OxiPNG produce much smaller files than the browser's encoders.
+ * Their WASM is fetched on first use; if that fails, the canvas encoder still works.
+ */
+async function encodeWasm(
+  format: 'jpeg' | 'png',
+  pixels: ImageData,
+  quality: number,
+): Promise<Blob | null> {
+  if (unavailable.has(format)) return null;
+  try {
+    const buffer = format === 'jpeg' ? await mozJpeg(pixels, quality) : await oxiPng(pixels);
+    return new Blob([buffer], { type: getMimeType(format) });
+  } catch (error) {
+    console.warn(`${format} WASM encoder unavailable, using the browser encoder`, error);
+    unavailable.add(format);
+    return null;
+  }
+}
+
 async function encode(
   canvas: OffscreenCanvas,
-  ctx: OffscreenCanvasRenderingContext2D,
+  pixels: () => ImageData,
   format: SupportedFormat,
   quality: number,
 ): Promise<Blob> {
+  if (format === 'jpeg' || format === 'png') {
+    const blob = await encodeWasm(format, pixels(), quality);
+    if (blob) return blob;
+  }
+
   if (format === 'avif' && !(await canvasEncodesAvif())) {
     // WASM encoder (~3 MB) is only fetched the first time AVIF is actually needed
     const { default: encodeAvif } = await import('@jsquash/avif/encode');
-    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const buffer = await encodeAvif(pixels, { quality, speed: 7 });
+    const buffer = await encodeAvif(pixels(), { quality, speed: 7 });
     return new Blob([buffer], { type: 'image/avif' });
   }
 
@@ -65,17 +116,35 @@ async function processImage({ source, cacheKey, settings, editState }: Compressi
       background: settings.format === 'jpeg' ? '#ffffff' : undefined,
     });
 
+    // Read the pixels once, however many encodes target-size mode needs
+    let imageData: ImageData | null = null;
+    const pixels = () => (imageData ??= ctx.getImageData(0, 0, out.width, out.height));
+    const encodeAt = (q: number) => encode(canvas, pixels, settings.format, q);
+
     // PNG is lossless, so there is no quality to trade for size
-    if (settings.targetSize && settings.format !== 'png') {
-      const { blob, ...target } = await encodeToTarget(
-        (q) => encode(canvas, ctx, settings.format, q),
-        settings.targetSize,
-      );
-      return { blob, dimensions: out, target };
+    const targetSize = settings.format !== 'png' ? settings.targetSize : undefined;
+    let blob: Blob;
+    let target: TargetSizeResult | undefined;
+    if (targetSize) {
+      const { blob: fitted, ...result } = await encodeToTarget(encodeAt, targetSize);
+      blob = fitted;
+      target = result;
+    } else {
+      blob = await encodeAt(settings.quality);
     }
 
-    const blob = await encode(canvas, ctx, settings.format, settings.quality);
-    return { blob, dimensions: out };
+    // Background removal is already baked into `source`, so only these edits change pixels
+    const pixelsUnchanged =
+      !(editState && (hasGeometryEdits(editState) || hasColorAdjustments(editState))) &&
+      out.width === bitmap.width &&
+      out.height === bitmap.height;
+    const reusedSource = await shouldReuseSource(source, blob, pixelsUnchanged);
+    if (reusedSource) {
+      blob = source;
+      if (target && targetSize) target = { ...target, targetMet: source.size <= targetSize };
+    }
+
+    return { blob, dimensions: out, target, reusedSource };
   } finally {
     if (!cacheKey) bitmap.close();
   }

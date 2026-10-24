@@ -75,7 +75,7 @@ export const useImageStore = create<AppState>()(
 
       resetSettings: () => set({ settings: DEFAULT_SETTINGS }),
 
-      setCompressedImage: (blob, dimensions, target) => {
+      setCompressedImage: (blob, dimensions, target, reusedSource) => {
         const { compressed, settings } = get();
         if (compressed) URL.revokeObjectURL(compressed.url);
 
@@ -88,6 +88,7 @@ export const useImageStore = create<AppState>()(
             format: formatFromMime(blob.type) ?? settings.format,
             quality: target?.quality,
             targetMet: target?.targetMet,
+            reusedSource,
           },
           status: IDLE_STATUS,
         });

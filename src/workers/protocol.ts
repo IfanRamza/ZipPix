@@ -22,6 +22,8 @@ export type CompressionResponse =
       dimensions: ImageDimensions;
       /** Present when settings.targetSize was honoured */
       target?: TargetSizeResult;
+      /** Re-encoding saved nothing, so `blob` is the untouched source (it had no metadata) */
+      reusedSource?: boolean;
     }
   | { type: 'ERROR'; id: string; error: string };
 

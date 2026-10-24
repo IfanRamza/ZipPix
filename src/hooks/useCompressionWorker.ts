@@ -47,7 +47,12 @@ export function useCompressionWorker() {
 
       if (Number(response.id) !== latestIdRef.current) return; // stale
       if (response.type === 'SUCCESS') {
-        setCompressedImage(response.blob, response.dimensions, response.target);
+        setCompressedImage(
+          response.blob,
+          response.dimensions,
+          response.target,
+          response.reusedSource,
+        );
       } else {
         setError(response.error);
       }

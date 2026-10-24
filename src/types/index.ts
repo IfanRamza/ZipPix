@@ -78,6 +78,8 @@ export interface CompressedImageState {
   quality?: number;
   /** Set in target-size mode: false when even the lowest quality is too large */
   targetMet?: boolean;
+  /** Re-encoding would not have saved anything, so this is the original file */
+  reusedSource?: boolean;
 }
 
 /** Extra details the encoder reports back in target-size mode */
@@ -110,7 +112,12 @@ export interface AppState {
   setOriginalImage: (file: File) => Promise<void>;
   updateSettings: (settings: Partial<CompressionSettings>) => void;
   resetSettings: () => void;
-  setCompressedImage: (blob: Blob, dimensions: ImageDimensions, target?: TargetSizeResult) => void;
+  setCompressedImage: (
+    blob: Blob,
+    dimensions: ImageDimensions,
+    target?: TargetSizeResult,
+    reusedSource?: boolean,
+  ) => void;
   reset: () => void;
   setError: (error: string | undefined) => void;
   setProcessing: (isProcessing: boolean) => void;
@@ -138,6 +145,8 @@ export interface BatchItem {
   quality?: number;
   /** Set in target-size mode: false when even the lowest quality is too large */
   targetMet?: boolean;
+  /** Re-encoding would not have saved anything, so the original file is kept */
+  reusedSource?: boolean;
   error?: string;
 }
 

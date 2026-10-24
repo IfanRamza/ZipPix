@@ -74,6 +74,7 @@ export function useBatchProcessor() {
             compressedSize: result.blob.size,
             quality: result.target?.quality,
             targetMet: result.target?.targetMet,
+            reusedSource: result.reusedSource,
           });
         } else {
           updateItem(item.id, { status: 'error', error: result.error });

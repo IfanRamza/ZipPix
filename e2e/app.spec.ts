@@ -152,15 +152,13 @@ test.describe('Single image flow', () => {
 
   test('sends several picked images to batch mode', async ({ page }) => {
     await page.goto('/');
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles(
-        [1, 2].map((i) => ({
-          name: `multi${i}.png`,
-          mimeType: 'image/png',
-          buffer: makePng(64, 64),
-        })),
-      );
+    await page.locator('input[type="file"]').setInputFiles(
+      [1, 2].map((i) => ({
+        name: `multi${i}.png`,
+        mimeType: 'image/png',
+        buffer: makePng(64, 64),
+      })),
+    );
     await expect(page).toHaveURL('/batch');
     await expect(page.getByText('Queue · 2')).toBeVisible();
   });
@@ -185,6 +183,37 @@ test.describe('Single image flow', () => {
     const file = await (await download).path();
     const { size } = await import('node:fs').then((fs) => fs.promises.stat(file));
     expect(size).toBeLessThanOrEqual(40 * 1024);
+  });
+
+  test('keeps the original when re-encoding would not make it smaller', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'sample.png',
+      mimeType: 'image/png',
+      buffer: makePng(320, 200),
+    });
+    await page.getByRole('radio', { name: 'PNG' }).click();
+    await expect(page.getByText('PNG · 320×200').nth(1)).toBeVisible();
+
+    // An OxiPNG result is already optimal: feeding it back in can't shrink it further
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download' }).click();
+    // Downloads are saved under a random name, so hand it back as a proper .png
+    const optimised = await import('node:fs').then(async (fs) =>
+      fs.promises.readFile(await (await download).path()),
+    );
+
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'New Image' }).click();
+    await (
+      await chooser
+    ).setFiles({
+      name: 'optimised.png',
+      mimeType: 'image/png',
+      buffer: optimised,
+    });
+    await expect(page.getByRole('heading', { name: 'optimised.png' })).toBeVisible();
+    await expect(page.getByText(/your original file is kept/)).toBeVisible();
   });
 });
 

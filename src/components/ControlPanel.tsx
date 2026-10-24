@@ -21,7 +21,7 @@ interface ControlPanelProps {
   sourceDimensions?: ImageDimensions;
   onReset?: () => void;
   /** Latest encode result, used to explain what target-size mode picked */
-  result?: Pick<CompressedImageState, 'quality' | 'targetMet'>;
+  result?: Pick<CompressedImageState, 'quality' | 'targetMet' | 'reusedSource'>;
 }
 
 const DEFAULT_TARGET_KB = 200;
@@ -116,6 +116,8 @@ export function ControlPanel({
   if (lossless) qualityFooter = 'PNG is lossless, so quality does not apply.';
   else if (targetMode && !result?.quality) {
     qualityFooter = 'Picks the highest quality that fits.';
+  } else if (targetMode && result?.reusedSource && result.targetMet) {
+    qualityFooter = 'Your original already fits, so it is kept as-is.';
   } else if (targetMode && result?.targetMet) {
     qualityFooter = `Quality ${result.quality} is the highest that fits.`;
   } else if (targetMode) {

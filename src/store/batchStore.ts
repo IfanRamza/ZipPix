@@ -57,6 +57,7 @@ export const useBatchStore = create<BatchStore>()(
                       compressedBlob: undefined,
                       quality: undefined,
                       targetMet: undefined,
+                      reusedSource: undefined,
                       error: undefined,
                     }
                   : item,

@@ -14,11 +14,11 @@ import { getEditedSize } from '@/lib/editPipeline';
 import { formatLabel, getFileExtension } from '@/lib/formats';
 import { downloadFile } from '@/lib/image';
 import { prepareImage, sourceOf, verifyImageFiles } from '@/lib/intake';
-import { defaultOutputBase } from '@/lib/utils';
+import { cn, defaultOutputBase } from '@/lib/utils';
 import { useBatchStore } from '@/store/batchStore';
 import { useImageStore } from '@/store/imageStore';
 import type { EditState } from '@/types';
-import { AlertTriangle, Download, ImagePlus, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { AlertTriangle, Download, ImagePlus, Info, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
@@ -258,6 +258,20 @@ export function HomePage() {
               {formatLabel(compressed.format)}.
             </Notice>
           )}
+          {compressed?.reusedSource ? (
+            <Notice tone='info'>
+              Re-encoding wouldn’t make this image smaller, so your original file is kept. It has no
+              metadata to strip.
+            </Notice>
+          ) : (
+            compressed &&
+            !busy &&
+            compressed.size > originalImage.size && (
+              <Notice>
+                This file is larger than the original. Try a lower quality or another format.
+              </Notice>
+            )
+          )}
           {status.error && <Notice tone='error'>{status.error}</Notice>}
         </aside>
       </div>
@@ -270,19 +284,22 @@ function Notice({
   tone = 'warning',
 }: {
   children: React.ReactNode;
-  tone?: 'warning' | 'error';
+  tone?: 'info' | 'warning' | 'error';
 }) {
+  const Icon = tone === 'info' ? Info : AlertTriangle;
   return (
     <div
       role={tone === 'error' ? 'alert' : 'status'}
-      className={
-        tone === 'error'
-          ? 'bg-destructive/10 text-destructive flex gap-2 rounded-2xl p-4 text-[13px]'
-          : 'bg-warning/10 text-warning flex gap-2 rounded-2xl p-4 text-[13px]'
-      }
+      className={cn('flex gap-2 rounded-2xl p-4 text-[13px]', NOTICE_TONES[tone])}
     >
-      <AlertTriangle className='size-4 shrink-0' />
+      <Icon className='size-4 shrink-0' />
       <span>{children}</span>
     </div>
   );
 }
+
+const NOTICE_TONES = {
+  info: 'bg-secondary text-muted-foreground',
+  warning: 'bg-warning/10 text-warning',
+  error: 'bg-destructive/10 text-destructive',
+};

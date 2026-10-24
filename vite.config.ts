@@ -24,7 +24,7 @@ export default defineConfig({
   // The compression worker lazy-loads the AVIF encoder, which needs code splitting
   worker: { format: 'es' },
   // jsquash resolves its .wasm via import.meta.url; pre-bundling would break that path
-  optimizeDeps: { exclude: ['@jsquash/avif'] },
+  optimizeDeps: { exclude: ['@jsquash/avif', '@jsquash/jpeg', '@jsquash/oxipng'] },
   plugins: [
     react(),
     dropUnusedOnnxWasm(),
@@ -68,15 +68,13 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,webp,png}'],
-        // ONNX runtime (~800 KB), the AVIF encoder and the HEIC decoder (~3 MB) load on demand
-        globIgnores: [
-          '**/ort*.{js,mjs}',
-          '**/avif_enc*.js',
-          '**/heic-to*.js',
-          '**/*.wasm',
-          '**/icon-*512.png',
+        // MozJPEG and OxiPNG (~650 KB of WASM) are precached so JPEG/PNG stay small offline
+        globPatterns: [
+          '**/*.{js,css,html,svg,webp,png}',
+          '**/{mozjpeg_enc,squoosh_oxipng_bg}-*.wasm',
         ],
+        // ONNX runtime (~800 KB), the AVIF encoder and the HEIC decoder (~3 MB) load on demand
+        globIgnores: ['**/ort*.{js,mjs}', '**/avif_enc*', '**/heic-to*.js', '**/icon-*512.png'],
       },
       devOptions: {
         enabled: false, // Disable in dev mode
