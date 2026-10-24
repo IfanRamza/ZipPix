@@ -1,4 +1,4 @@
-import type { SupportedFormat } from '@/types';
+import type { CompressionSettings, SupportedFormat } from '@/types';
 
 const MIME_TYPES: Record<SupportedFormat, string> = {
   jpeg: 'image/jpeg',
@@ -27,6 +27,11 @@ const LABELS: Record<string, string> = {
   webp: 'WebP',
   avif: 'AVIF',
 };
+
+/** PNG and lossless WebP have no quality to trade for size */
+export function isLossless(settings: Pick<CompressionSettings, 'format' | 'webpLossless'>) {
+  return settings.format === 'png' || (settings.format === 'webp' && !!settings.webpLossless);
+}
 
 export function getMimeType(format: SupportedFormat): string {
   return MIME_TYPES[format];

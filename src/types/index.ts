@@ -15,7 +15,15 @@ export interface CompressionSettings {
   targetSize?: number;
   /** PNG only: reduce to at most this many colours (2–256) before encoding. Off when unset. */
   paletteColors?: number;
+  /** JPEG and AVIF: keep full-resolution colour (4:4:4) instead of halving it (4:2:0) */
+  fullChroma?: boolean;
+  /** AVIF: spend more time for smaller files. Unset means balanced. */
+  avifEffort?: AvifEffort;
+  /** WebP: lossless encoding (quality and target size don't apply) */
+  webpLossless?: boolean;
 }
+
+export type AvifEffort = 'balanced' | 'high' | 'max';
 
 export const DEFAULT_SETTINGS: CompressionSettings = {
   format: 'webp',

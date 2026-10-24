@@ -5,11 +5,11 @@ import {
   hasGeometryEdits,
   renderEdited,
 } from '@/lib/editPipeline';
-import { getMimeType } from '@/lib/formats';
+import { getMimeType, isLossless } from '@/lib/formats';
 import { reducePalette } from '@/lib/palette';
 import { shouldReuseSource } from '@/lib/sourceReuse';
 import { encodeToTarget } from '@/lib/targetSize';
-import type { SupportedFormat, TargetSizeResult } from '@/types';
+import type { AvifEffort, TargetSizeResult } from '@/types';
 import type { CompressionRequest, CompressionResponse } from './protocol';
 
 let nativeAvif: Promise<boolean> | null = null;
@@ -29,9 +29,20 @@ function canvasEncodesAvif(): Promise<boolean> {
  */
 const OXIPNG_LEVEL_2_MAX_PIXELS = 4_000_000;
 
-async function mozJpeg(pixels: ImageData, quality: number): Promise<ArrayBuffer> {
+/** libavif speed per effort: each step down is ~3x slower for ~10% smaller files */
+const AVIF_SPEED: Record<AvifEffort, number> = { balanced: 7, high: 5, max: 3 };
+
+// Chroma settings measured on fine red/blue detail; the codecs' numbering isn't intuitive
+/** MozJPEG: 1 = no chroma subsampling (4:4:4), applied only with auto_subsample off */
+const JPEG_FULL_CHROMA = { auto_subsample: false, chroma_subsample: 1 };
+/** libavif: 3 = YUV 4:4:4 (1 is the 4:2:0 default, 0 is greyscale) */
+const AVIF_SUBSAMPLE_444 = 3;
+
+type Settings = CompressionRequest['settings'];
+
+async function mozJpeg(pixels: ImageData, quality: number, s: Settings): Promise<ArrayBuffer> {
   const { default: encodeJpeg } = await import('@jsquash/jpeg/encode');
-  return encodeJpeg(pixels, { quality });
+  return encodeJpeg(pixels, { quality, ...(s.fullChroma && JPEG_FULL_CHROMA) });
 }
 
 async function oxiPng(pixels: ImageData): Promise<ArrayBuffer> {
@@ -40,25 +51,31 @@ async function oxiPng(pixels: ImageData): Promise<ArrayBuffer> {
   return optimise(pixels, { level });
 }
 
+async function losslessWebp(pixels: ImageData): Promise<ArrayBuffer> {
+  const { default: encodeWebp } = await import('@jsquash/webp/encode');
+  return encodeWebp(pixels, { lossless: 1 });
+}
+
 /** Codecs whose WASM failed to load (offline before first use, blocked fetch) */
-const unavailable = new Set<SupportedFormat>();
+const unavailable = new Set<string>();
 
 /**
- * MozJPEG and OxiPNG produce much smaller files than the browser's encoders.
- * Their WASM is fetched on first use; if that fails, the canvas encoder still works.
+ * MozJPEG and OxiPNG beat the browser's encoders, so their WASM is fetched on
+ * first use; if that fails, the canvas encoder takes over for the session.
+ * Canvas can't write lossless WebP at all, so that one is retried every time.
  */
 async function encodeWasm(
-  format: 'jpeg' | 'png',
-  pixels: ImageData,
-  quality: number,
+  name: string,
+  type: string,
+  run: () => Promise<ArrayBuffer>,
+  hasFallback = true,
 ): Promise<Blob | null> {
-  if (unavailable.has(format)) return null;
+  if (unavailable.has(name)) return null;
   try {
-    const buffer = format === 'jpeg' ? await mozJpeg(pixels, quality) : await oxiPng(pixels);
-    return new Blob([buffer], { type: getMimeType(format) });
+    return new Blob([await run()], { type });
   } catch (error) {
-    console.warn(`${format} WASM encoder unavailable, using the browser encoder`, error);
-    unavailable.add(format);
+    console.warn(`${name} WASM encoder unavailable`, error);
+    if (hasFallback) unavailable.add(name);
     return null;
   }
 }
@@ -66,23 +83,38 @@ async function encodeWasm(
 async function encode(
   canvas: OffscreenCanvas,
   pixels: () => ImageData,
-  format: SupportedFormat,
+  settings: Settings,
   quality: number,
 ): Promise<Blob> {
-  if (format === 'jpeg' || format === 'png') {
-    const blob = await encodeWasm(format, pixels(), quality);
-    if (blob) return blob;
+  const { format } = settings;
+  const type = getMimeType(format);
+  let wasm: Blob | null = null;
+  if (format === 'jpeg') {
+    wasm = await encodeWasm('MozJPEG', type, () => mozJpeg(pixels(), quality, settings));
+  } else if (format === 'png') {
+    wasm = await encodeWasm('OxiPNG', type, () => oxiPng(pixels()));
+  } else if (isLossless(settings)) {
+    wasm = await encodeWasm('WebP lossless', type, () => losslessWebp(pixels()), false);
+    // A lossy file would silently break the promise, so fail visibly instead
+    if (!wasm) throw new Error('The lossless WebP encoder could not load. Check your connection.');
   }
+  if (wasm) return wasm;
 
-  if (format === 'avif' && !(await canvasEncodesAvif())) {
+  // Native AVIF (Safari) takes no options, so effort and 4:4:4 need the WASM encoder
+  const avifOptions = !!settings.avifEffort || !!settings.fullChroma;
+  if (format === 'avif' && (avifOptions || !(await canvasEncodesAvif()))) {
     // WASM encoder (~3 MB) is only fetched the first time AVIF is actually needed
     const { default: encodeAvif } = await import('@jsquash/avif/encode');
-    const buffer = await encodeAvif(pixels(), { quality, speed: 7 });
-    return new Blob([buffer], { type: 'image/avif' });
+    const buffer = await encodeAvif(pixels(), {
+      quality,
+      speed: AVIF_SPEED[settings.avifEffort ?? 'balanced'],
+      ...(settings.fullChroma && { subsample: AVIF_SUBSAMPLE_444 }),
+    });
+    return new Blob([buffer], { type });
   }
 
   return canvas.convertToBlob({
-    type: getMimeType(format),
+    type,
     quality: format === 'png' ? undefined : quality / 100,
   });
 }
@@ -126,10 +158,10 @@ async function processImage({ source, cacheKey, settings, editState }: Compressi
       ctx.putImageData(imageData, 0, 0);
     }
     const pixels = () => (imageData ??= ctx.getImageData(0, 0, out.width, out.height));
-    const encodeAt = (q: number) => encode(canvas, pixels, settings.format, q);
+    const encodeAt = (q: number) => encode(canvas, pixels, settings, q);
 
-    // PNG is lossless, so there is no quality to trade for size
-    const targetSize = settings.format !== 'png' ? settings.targetSize : undefined;
+    // Lossless output has no quality to trade for size
+    const targetSize = isLossless(settings) ? undefined : settings.targetSize;
     let blob: Blob;
     let target: TargetSizeResult | undefined;
     if (targetSize) {

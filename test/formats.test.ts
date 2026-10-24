@@ -1,8 +1,22 @@
 import { describe, expect, test } from 'bun:test';
-import { formatFromMime, formatLabel, getFileExtension, getMimeType } from '../src/lib/formats';
+import {
+  formatFromMime,
+  formatLabel,
+  getFileExtension,
+  getMimeType,
+  isLossless,
+} from '../src/lib/formats';
 import { buildZip, dedupeNames } from '../src/lib/zip';
 
 describe('formats', () => {
+  test('isLossless covers PNG and lossless WebP only', () => {
+    expect(isLossless({ format: 'png' })).toBe(true);
+    expect(isLossless({ format: 'webp', webpLossless: true })).toBe(true);
+    expect(isLossless({ format: 'webp' })).toBe(false);
+    // The WebP switch is remembered, but doesn't make other formats lossless
+    expect(isLossless({ format: 'jpeg', webpLossless: true })).toBe(false);
+  });
+
   test('getMimeType / formatFromMime round-trip', () => {
     for (const f of ['jpeg', 'png', 'webp', 'avif'] as const) {
       expect(formatFromMime(getMimeType(f))).toBe(f);

@@ -12,6 +12,9 @@ describe('sanitizeSettings', () => {
         maintainAspectRatio: false,
         targetSize: 200 * 1024,
         paletteColors: 64,
+        fullChroma: true,
+        avifEffort: 'max',
+        webpLossless: true,
       }),
     ).toEqual({
       format: 'avif',
@@ -20,6 +23,9 @@ describe('sanitizeSettings', () => {
       maintainAspectRatio: false,
       targetSize: 200 * 1024,
       paletteColors: 64,
+      fullChroma: true,
+      avifEffort: 'max',
+      webpLossless: true,
     });
   });
 
@@ -36,6 +42,9 @@ describe('sanitizeSettings', () => {
     expect(sanitizeSettings({ quality: 50.5, targetSize: -1 })).toEqual({});
     expect(sanitizeSettings({ paletteColors: 1 })).toEqual({});
     expect(sanitizeSettings({ paletteColors: 257 })).toEqual({});
+    expect(sanitizeSettings({ fullChroma: 'yes', avifEffort: 'turbo', webpLossless: 1 })).toEqual(
+      {},
+    );
   });
 
   test('ignores non-objects', () => {

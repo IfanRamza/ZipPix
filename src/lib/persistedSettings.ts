@@ -29,6 +29,9 @@ export function sanitizeSettings(raw: unknown): Partial<CompressionSettings> {
   if (isIntIn(r.paletteColors, MIN_PALETTE_COLORS, MAX_PALETTE_COLORS)) {
     out.paletteColors = r.paletteColors;
   }
+  if (r.fullChroma === true) out.fullChroma = true;
+  if (r.avifEffort === 'high' || r.avifEffort === 'max') out.avifEffort = r.avifEffort;
+  if (r.webpLossless === true) out.webpLossless = true;
   return out;
 }
 

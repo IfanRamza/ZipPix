@@ -3,11 +3,12 @@ import { Input } from '@/components/ui/input';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { detectEncodeSupport } from '@/lib/formats';
+import { detectEncodeSupport, isLossless } from '@/lib/formats';
 import { MAX_PALETTE_COLORS, MIN_PALETTE_COLORS } from '@/lib/palette';
 import { MAX_TARGET_KB } from '@/lib/persistedSettings';
 import { cn } from '@/lib/utils';
 import type {
+  AvifEffort,
   CompressedImageState,
   CompressionSettings,
   ImageDimensions,
@@ -28,13 +29,25 @@ interface ControlPanelProps {
 const DEFAULT_TARGET_KB = 200;
 
 const PRESETS: { label: string; settings: Partial<CompressionSettings> }[] = [
-  { label: 'Web', settings: { format: 'webp', quality: 82 } },
-  { label: 'Smallest', settings: { format: 'webp', quality: 60 } },
+  { label: 'Web', settings: { format: 'webp', quality: 82, webpLossless: undefined } },
+  { label: 'Smallest', settings: { format: 'webp', quality: 60, webpLossless: undefined } },
   { label: 'Photo', settings: { format: 'jpeg', quality: 88 } },
   { label: 'Lossless', settings: { format: 'png', paletteColors: undefined } },
 ];
 
 const SCALES = ['25', '50', '75', '100', '200'] as const;
+
+const EFFORT_OPTIONS: { value: AvifEffort; label: string }[] = [
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'high', label: 'High' },
+  { value: 'max', label: 'Max' },
+];
+
+const EFFORT_HINTS: Record<AvifEffort, string> = {
+  balanced: '',
+  high: 'High effort: ~3x slower, ~10% smaller.',
+  max: 'Max effort: ~6x slower, ~20% smaller.',
+};
 
 const FORMAT_LABELS: Record<SupportedFormat, string> = {
   jpeg: 'JPEG',
@@ -102,7 +115,8 @@ export function ControlPanel({
     onSettingsChange({ quality: q }),
   );
 
-  const lossless = settings.format === 'png';
+  const lossless = isLossless(settings);
+  const isPng = settings.format === 'png';
   const targetMode = !!settings.targetSize && !lossless;
   const [targetKb, setTargetKb, flushTargetKb] = useDebouncedCommit(
     String(Math.round((settings.targetSize ?? DEFAULT_TARGET_KB * 1024) / 1024)),
@@ -118,10 +132,12 @@ export function ControlPanel({
   );
 
   let qualityFooter: ReactNode = 'Lower quality means a smaller file.';
-  if (lossless && settings.paletteColors) {
+  if (isPng && settings.paletteColors) {
     qualityFooter = 'Much smaller screenshots and graphics. Photos may show banding.';
-  } else if (lossless) {
+  } else if (isPng) {
     qualityFooter = 'PNG is lossless. Reduce colours for a much smaller file.';
+  } else if (lossless) {
+    qualityFooter = 'Exact pixels, usually much smaller than PNG.';
   } else if (targetMode && !result?.quality) {
     qualityFooter = 'Picks the highest quality that fits.';
   } else if (targetMode && result?.reusedSource && result.targetMet) {
@@ -137,10 +153,21 @@ export function ControlPanel({
     );
   }
 
+  const hasAdvanced = settings.format === 'jpeg' || settings.format === 'avif';
+  const advancedFooter = [
+    settings.fullChroma
+      ? 'Sharp coloured text and edges (4:4:4); files are ~30–60% larger.'
+      : 'Full colour detail keeps coloured text and edges crisp.',
+    settings.format === 'avif' && EFFORT_HINTS[settings.avifEffort ?? 'balanced'],
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   const activePreset = PRESETS.find(
     (p) =>
       !settings.targetSize &&
-      !(settings.format === 'png' && settings.paletteColors) &&
+      !(isPng && settings.paletteColors) &&
+      !(settings.format === 'webp' && settings.webpLossless) &&
       p.settings.format === settings.format &&
       (p.settings.quality === undefined || p.settings.quality === settings.quality),
   )?.label;
@@ -230,6 +257,17 @@ export function ControlPanel({
       </Group>
 
       <Group title='Quality' footer={qualityFooter}>
+        {settings.format === 'webp' && (
+          <GroupRow label='Lossless' htmlFor='webp-lossless'>
+            <Switch
+              id='webp-lossless'
+              checked={!!settings.webpLossless}
+              onCheckedChange={(checked) =>
+                onSettingsChange({ webpLossless: checked || undefined })
+              }
+            />
+          </GroupRow>
+        )}
         {!lossless && (
           <div className='p-3'>
             <SegmentedControl
@@ -248,7 +286,7 @@ export function ControlPanel({
             />
           </div>
         )}
-        {lossless ? (
+        {isPng ? (
           <>
             <GroupRow label='Reduce colours' htmlFor='reduce-palette'>
               <Switch
@@ -273,7 +311,7 @@ export function ControlPanel({
               </div>
             )}
           </>
-        ) : targetMode ? (
+        ) : lossless ? null : targetMode ? (
           <label className='flex items-center gap-3 px-4 py-3'>
             <span className='text-[15px]'>Max size</span>
             <Input
@@ -302,6 +340,36 @@ export function ControlPanel({
           </div>
         )}
       </Group>
+
+      {hasAdvanced && (
+        <Group title='Advanced' footer={advancedFooter}>
+          <GroupRow label='Full colour detail' htmlFor='full-chroma'>
+            <Switch
+              id='full-chroma'
+              checked={!!settings.fullChroma}
+              onCheckedChange={(checked) => onSettingsChange({ fullChroma: checked || undefined })}
+            />
+          </GroupRow>
+          {settings.format === 'avif' && (
+            <div className='flex items-center gap-3 py-2.5 pr-3 pl-4'>
+              <span className='text-[15px]' aria-hidden>
+                Effort
+              </span>
+              <div className='flex-1'>
+                <SegmentedControl
+                  label='Encoding effort'
+                  size='sm'
+                  value={settings.avifEffort ?? 'balanced'}
+                  options={EFFORT_OPTIONS}
+                  onChange={(effort) =>
+                    onSettingsChange({ avifEffort: effort === 'balanced' ? undefined : effort })
+                  }
+                />
+              </div>
+            </div>
+          )}
+        </Group>
+      )}
 
       <Group title='Size'>
         <div className='p-3'>

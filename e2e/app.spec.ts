@@ -281,6 +281,50 @@ test.describe('Single image flow', () => {
   });
 });
 
+test.describe('Advanced options', () => {
+  const compressedSize = (page: import('@playwright/test').Page) =>
+    page.getByText('Compressed', { exact: true }).locator('xpath=..').locator('p').nth(1);
+
+  test('lossless WebP replaces the quality controls', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'sample.png',
+      mimeType: 'image/png',
+      buffer: makePng(200, 150, true),
+    });
+    await expect(page.getByText('WebP · 200×150')).toBeVisible();
+    await page.getByRole('switch', { name: 'Lossless' }).click();
+    await expect(page.getByRole('slider', { name: 'Quality' })).toBeHidden();
+    await expect(page.getByText('Exact pixels, usually much smaller than PNG.')).toBeVisible();
+    // No preset matches lossless WebP
+    await expect(page.getByRole('button', { pressed: true })).toHaveCount(0);
+    await expect(page.getByText('WebP · 200×150')).toBeVisible();
+  });
+
+  test('full colour detail and AVIF effort are offered for JPEG and AVIF', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'noisy.png',
+      mimeType: 'image/png',
+      buffer: makePng(300, 200, true),
+    });
+    await page.getByRole('radio', { name: 'JPEG' }).click();
+    await expect(page.getByText('JPEG · 300×200')).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: 'Encoding effort' })).toBeHidden();
+    const subsampled = await compressedSize(page).textContent();
+
+    // 4:4:4 keeps twice the colour samples, so noisy colour costs more bytes
+    await page.getByRole('switch', { name: 'Full colour detail' }).click();
+    await expect(compressedSize(page)).not.toHaveText(subsampled!);
+    await expect(page.getByText(/Sharp coloured text and edges/)).toBeVisible();
+
+    await page.getByRole('radio', { name: 'AVIF' }).click();
+    await page.getByRole('radio', { name: 'High' }).click();
+    await expect(page.getByText(/High effort: ~3x slower/)).toBeVisible();
+    await expect(page.getByText('AVIF · 300×200')).toBeVisible({ timeout: 20_000 });
+  });
+});
+
 test.describe('Batch flow', () => {
   test('processes several images and downloads a ZIP', async ({ page }) => {
     await page.goto('/batch');
