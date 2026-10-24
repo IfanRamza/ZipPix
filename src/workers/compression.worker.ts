@@ -1,5 +1,6 @@
 import { getEditedSize, getOutputSize, renderEdited } from '@/lib/editPipeline';
 import { getMimeType } from '@/lib/formats';
+import { encodeToTarget } from '@/lib/targetSize';
 import type { SupportedFormat } from '@/types';
 import type { CompressionRequest, CompressionResponse } from './protocol';
 
@@ -63,6 +64,15 @@ async function processImage({ source, cacheKey, settings, editState }: Compressi
     renderEdited(ctx, bitmap, editState, out, {
       background: settings.format === 'jpeg' ? '#ffffff' : undefined,
     });
+
+    // PNG is lossless, so there is no quality to trade for size
+    if (settings.targetSize && settings.format !== 'png') {
+      const { blob, ...target } = await encodeToTarget(
+        (q) => encode(canvas, ctx, settings.format, q),
+        settings.targetSize,
+      );
+      return { blob, dimensions: out, target };
+    }
 
     const blob = await encode(canvas, ctx, settings.format, settings.quality);
     return { blob, dimensions: out };

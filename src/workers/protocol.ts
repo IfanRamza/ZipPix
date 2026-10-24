@@ -1,4 +1,4 @@
-import type { CompressionSettings, EditState, ImageDimensions } from '@/types';
+import type { CompressionSettings, EditState, ImageDimensions, TargetSizeResult } from '@/types';
 
 export interface CompressionRequest {
   type: 'COMPRESS';
@@ -15,7 +15,14 @@ export interface CompressionRequest {
 }
 
 export type CompressionResponse =
-  | { type: 'SUCCESS'; id: string; blob: Blob; dimensions: ImageDimensions }
+  | {
+      type: 'SUCCESS';
+      id: string;
+      blob: Blob;
+      dimensions: ImageDimensions;
+      /** Present when settings.targetSize was honoured */
+      target?: TargetSizeResult;
+    }
   | { type: 'ERROR'; id: string; error: string };
 
 export function createCompressionWorker(): Worker {

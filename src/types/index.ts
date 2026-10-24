@@ -11,6 +11,8 @@ export interface CompressionSettings {
   width?: number;
   height?: number;
   maintainAspectRatio: boolean;
+  /** Max output size in bytes. Lossy formats only: the encoder picks the highest quality that fits. */
+  targetSize?: number;
 }
 
 export const DEFAULT_SETTINGS: CompressionSettings = {
@@ -72,6 +74,16 @@ export interface CompressedImageState {
   dimensions: ImageDimensions;
   /** Format the browser actually produced (may differ from the requested one) */
   format: SupportedFormat;
+  /** Set in target-size mode: the quality that was chosen */
+  quality?: number;
+  /** Set in target-size mode: false when even the lowest quality is too large */
+  targetMet?: boolean;
+}
+
+/** Extra details the encoder reports back in target-size mode */
+export interface TargetSizeResult {
+  quality: number;
+  targetMet: boolean;
 }
 
 export interface ProcessingStatus {
@@ -98,7 +110,7 @@ export interface AppState {
   setOriginalImage: (file: File) => Promise<void>;
   updateSettings: (settings: Partial<CompressionSettings>) => void;
   resetSettings: () => void;
-  setCompressedImage: (blob: Blob, dimensions: ImageDimensions) => void;
+  setCompressedImage: (blob: Blob, dimensions: ImageDimensions, target?: TargetSizeResult) => void;
   reset: () => void;
   setError: (error: string | undefined) => void;
   setProcessing: (isProcessing: boolean) => void;
