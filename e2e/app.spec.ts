@@ -132,6 +132,60 @@ test.describe('Single image flow', () => {
     await expect(page.getByText('Rotated 90°')).toBeVisible();
     await expect(page.getByText('WebP · 100×300')).toBeVisible();
   });
+
+  test('accepts an image pasted from the clipboard', async ({ page }) => {
+    await page.goto('/');
+    // The page is lazy-loaded: its paste listener exists once the dropzone renders
+    await expect(page.getByText('Drop your image here')).toBeVisible();
+    const png = makePng(120, 80).toString('base64');
+    await page.evaluate((b64) => {
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const data = new DataTransfer();
+      data.items.add(new File([bytes], 'image.png', { type: 'image/png' }));
+      document.body.dispatchEvent(
+        new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
+      );
+    }, png);
+    await expect(page.getByRole('heading', { name: /^pasted-.*\.png$/ })).toBeVisible();
+    await expect(page.getByText('WebP · 120×80')).toBeVisible();
+  });
+
+  test('sends several picked images to batch mode', async ({ page }) => {
+    await page.goto('/');
+    await page
+      .locator('input[type="file"]')
+      .setInputFiles(
+        [1, 2].map((i) => ({
+          name: `multi${i}.png`,
+          mimeType: 'image/png',
+          buffer: makePng(64, 64),
+        })),
+      );
+    await expect(page).toHaveURL('/batch');
+    await expect(page.getByText('Queue · 2')).toBeVisible();
+  });
+
+  test('target size mode keeps the file under the limit', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'noisy.png',
+      mimeType: 'image/png',
+      buffer: makePng(400, 300, true),
+    });
+    await expect(page.getByText('WebP · 400×300')).toBeVisible();
+
+    await page.getByRole('radio', { name: 'Target size' }).click();
+    await page.getByLabel('Maximum file size in kilobytes').fill('40');
+    // Wait for the 40 KB result, not the one left over from the default 200 KB target
+    await expect(page.getByText(/^Quality [1-8]?\d is the highest that fits\.$/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Download' })).toBeEnabled();
+
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download' }).click();
+    const file = await (await download).path();
+    const { size } = await import('node:fs').then((fs) => fs.promises.stat(file));
+    expect(size).toBeLessThanOrEqual(40 * 1024);
+  });
 });
 
 test.describe('Batch flow', () => {
