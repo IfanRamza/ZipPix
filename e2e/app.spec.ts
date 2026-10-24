@@ -118,6 +118,42 @@ test.describe('Single image flow', () => {
     await expect(slider).toHaveAttribute('aria-valuenow', '100');
   });
 
+  test('comparison can zoom in, pan and return to fit', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'sample.png',
+      mimeType: 'image/png',
+      buffer: makePng(1600, 1200, true),
+    });
+    await expect(page.getByRole('img', { name: 'Compressed result' })).toBeVisible();
+    const layer = page.getByRole('img', { name: 'Compressed result' }).locator('xpath=..');
+    const transform = () => layer.evaluate((el) => (el as HTMLElement).style.transform);
+
+    await page.getByRole('button', { name: 'Zoom in' }).click();
+    await expect(page.getByRole('button', { name: 'Zoom out' })).toBeEnabled();
+    await expect(page.getByTitle('Fit to view')).toHaveText(/^\d+%$/);
+    const zoomedIn = await transform();
+    expect(zoomedIn).toContain('scale(1.5)');
+
+    // Dragging away from the divider pans instead of moving it
+    const slider = page.getByRole('slider', { name: 'Compare original and compressed' });
+    const box = (await slider.boundingBox())!;
+    await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 4 });
+    await page.mouse.up();
+    expect(await transform()).not.toBe(zoomedIn);
+    await expect(slider).toHaveAttribute('aria-valuenow', '50');
+
+    // Keyboard zoom, then back to fit
+    await slider.focus();
+    await page.keyboard.press('+');
+    expect(await transform()).toContain('scale(2.25)');
+    await page.getByTitle('Fit to view').click();
+    expect(await transform()).toBe('');
+    await expect(page.getByTitle('Actual size')).toHaveText('Fit');
+  });
+
   test('editor applies a rotation', async ({ page }) => {
     await page.goto('/');
     await page.locator('input[type="file"]').setInputFiles({

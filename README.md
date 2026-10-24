@@ -18,7 +18,7 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 - **📱 HEIC Input** - iPhone photos (HEIC/HEIF) are decoded in the browser, so they work in every browser, not just Safari.
 - **📐 Resizing** - Percentage scaling or exact dimensions, applied after crop and rotation without distortion.
 - **⚡ Smart Presets** - Quick options for Web, Smallest, Photo and Lossless.
-- **🔍 Live Comparison** - Interactive split-slider to compare original vs. compressed.
+- **🔍 Live Comparison** - Split-slider to compare original vs. compressed, with zoom (buttons, Ctrl/⌘ + scroll, pinch, double-click for 100%) and pan to inspect compression artefacts pixel by pixel.
 - **🗑️ Metadata Stripping** - Automatically removes EXIF/IPTC/XMP for privacy.
 - **💾 Remembered Settings** - Your last format, quality and target size are kept in the browser for next time.
 
