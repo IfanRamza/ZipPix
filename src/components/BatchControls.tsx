@@ -74,6 +74,13 @@ export function BatchControls({ onStart }: BatchControlsProps) {
         />
       </div>
 
+      {stats.overTarget > 0 && (
+        <p className='text-warning text-[13px]'>
+          {stats.overTarget === 1 ? '1 image is' : `${stats.overTarget} images are`} still over the
+          target size at the lowest quality. Reduce the size or try AVIF.
+        </p>
+      )}
+
       {stats.errors > 0 && !isProcessing && (
         <p className='text-destructive text-[13px]'>
           {stats.errors} failed — start again to retry.

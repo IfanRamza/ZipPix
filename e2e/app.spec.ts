@@ -208,3 +208,35 @@ test.describe('Batch flow', () => {
     expect((await download).suggestedFilename()).toMatch(/^zippix_.*\.zip$/);
   });
 });
+
+test.describe('Batch target size', () => {
+  test('reports the quality each image needed to fit', async ({ page }) => {
+    await page.goto('/batch');
+    await page.locator('input[type="file"]').setInputFiles(
+      [1, 2].map((i) => ({
+        name: `noisy${i}.png`,
+        mimeType: 'image/png',
+        buffer: makePng(300, 200, true),
+      })),
+    );
+    await page.getByRole('radio', { name: 'Target size' }).click();
+    await page.getByLabel('Maximum file size in kilobytes').fill('30');
+    await page.getByRole('button', { name: 'Start Processing' }).click();
+    await expect(page.getByText('2/2')).toBeVisible();
+    await expect(page.getByText(/· Q\d+$/)).toHaveCount(2);
+  });
+
+  test('warns when an image cannot reach the target', async ({ page }) => {
+    await page.goto('/batch');
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'big.png',
+      mimeType: 'image/png',
+      buffer: makePng(800, 600, true),
+    });
+    await page.getByRole('radio', { name: 'Target size' }).click();
+    await page.getByLabel('Maximum file size in kilobytes').fill('1');
+    await page.getByRole('button', { name: 'Start Processing' }).click();
+    await expect(page.getByText('over target')).toBeVisible();
+    await expect(page.getByText(/1 image is still over the target size/)).toBeVisible();
+  });
+});

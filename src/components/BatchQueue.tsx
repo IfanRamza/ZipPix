@@ -53,6 +53,8 @@ const BatchQueueItem = memo(function BatchQueueItem({
             <>
               {' → '}
               <span className='text-foreground'>{formatBytes(item.compressedSize, 1)}</span>
+              {item.targetMet && ` · Q${item.quality}`}
+              {item.targetMet === false && <span className='text-warning'> · over target</span>}
             </>
           )}
           {item.status === 'error' && <span className='text-destructive'> · {item.error}</span>}

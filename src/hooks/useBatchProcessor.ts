@@ -72,6 +72,8 @@ export function useBatchProcessor() {
             status: 'complete',
             compressedBlob: result.blob,
             compressedSize: result.blob.size,
+            quality: result.target?.quality,
+            targetMet: result.target?.targetMet,
           });
         } else {
           updateItem(item.id, { status: 'error', error: result.error });

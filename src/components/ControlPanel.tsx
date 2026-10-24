@@ -74,7 +74,11 @@ function useDebouncedCommit<T>(value: T, commit: (v: T) => void, delay = 150) {
     const t = setTimeout(() => commitRef.current(local), delay);
     return () => clearTimeout(t);
   }, [local, value, delay]);
-  return [local, setLocal] as const;
+  // Commit right away (e.g. on blur) so a click straight after typing sees the new value
+  const flush = () => {
+    if (local !== value) commitRef.current(local);
+  };
+  return [local, setLocal, flush] as const;
 }
 
 export function ControlPanel({
@@ -98,7 +102,7 @@ export function ControlPanel({
 
   const lossless = settings.format === 'png';
   const targetMode = !!settings.targetSize && !lossless;
-  const [targetKb, setTargetKb] = useDebouncedCommit(
+  const [targetKb, setTargetKb, flushTargetKb] = useDebouncedCommit(
     String(Math.round((settings.targetSize ?? DEFAULT_TARGET_KB * 1024) / 1024)),
     (raw) => {
       const kb = parseInt(raw, 10);
@@ -241,6 +245,7 @@ export function ControlPanel({
               min={1}
               value={targetKb}
               onChange={(e) => setTargetKb(e.target.value)}
+              onBlur={flushTargetKb}
               className='tabular ml-auto w-28 text-right'
               aria-label='Maximum file size in kilobytes'
             />

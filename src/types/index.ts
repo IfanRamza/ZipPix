@@ -134,6 +134,10 @@ export interface BatchItem {
   height?: number;
   compressedBlob?: Blob;
   compressedSize?: number;
+  /** Set in target-size mode: the quality that was chosen */
+  quality?: number;
+  /** Set in target-size mode: false when even the lowest quality is too large */
+  targetMet?: boolean;
   error?: string;
 }
 

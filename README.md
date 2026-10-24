@@ -31,6 +31,7 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 - **📦 Up to 20 Images** - Process multiple images at once
 - **🏷️ Rename Outputs** - Edit filenames before download
 - **📥 ZIP Download** - Download all compressed images as a single ZIP file
+- **🎯 Target Size** - Set a maximum file size; each image gets the highest quality that fits
 - **📊 Progress Tracking** - Per-image status and format conversion display
 
 ### Security

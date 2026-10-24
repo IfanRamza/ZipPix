@@ -47,13 +47,21 @@ export const useBatchStore = create<BatchStore>((set, get) => ({
         ? state.items
         : state.items.map((item) =>
             item.status === 'complete' || item.status === 'error'
-              ? { ...item, status: 'queued', compressedBlob: undefined, error: undefined }
+              ? {
+                  ...item,
+                  status: 'queued',
+                  compressedBlob: undefined,
+                  quality: undefined,
+                  targetMet: undefined,
+                  error: undefined,
+                }
               : item,
           ),
     }));
   },
 
-  resetSettings: () => get().updateSettings({ ...DEFAULT_SETTINGS }),
+  // DEFAULT_SETTINGS has no targetSize key, so clear it explicitly to leave target mode
+  resetSettings: () => get().updateSettings({ ...DEFAULT_SETTINGS, targetSize: undefined }),
 
   addItems: (files) => {
     const remaining = MAX_BATCH_SIZE - get().items.length;
@@ -132,6 +140,7 @@ export const useBatchStats = () =>
       let processing = 0;
       let complete = 0;
       let errors = 0;
+      let overTarget = 0;
       let originalBytes = 0;
       let compressedBytes = 0;
       for (const item of items) {
@@ -139,6 +148,7 @@ export const useBatchStats = () =>
         else if (item.status === 'processing') processing++;
         else if (item.status === 'complete') {
           complete++;
+          if (item.targetMet === false) overTarget++;
           originalBytes += sourceOf(item.file).size;
           compressedBytes += item.compressedSize ?? 0;
         } else errors++;
@@ -149,6 +159,7 @@ export const useBatchStats = () =>
         processing,
         complete,
         errors,
+        overTarget,
         originalBytes,
         compressedBytes,
         canAddMore: items.length < MAX_BATCH_SIZE,
