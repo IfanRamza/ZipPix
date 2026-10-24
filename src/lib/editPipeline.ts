@@ -80,22 +80,78 @@ function supportsCtxFilter(ctx: Ctx2D): boolean {
 }
 
 /**
+ * Intermediate sizes for shrinking `from` towards `to`, halving each axis
+ * while it stays at least as large as the target. The last step is within 2x.
+ */
+export function halvingSteps(from: ImageDimensions, to: ImageDimensions): ImageDimensions[] {
+  const steps: ImageDimensions[] = [];
+  let { width, height } = from;
+  for (;;) {
+    const w = width / 2 >= to.width ? Math.round(width / 2) : width;
+    const h = height / 2 >= to.height ? Math.round(height / 2) : height;
+    if (w === width && h === height) return steps;
+    steps.push({ width: w, height: h });
+    width = w;
+    height = h;
+  }
+}
+
+type Drawable = CanvasImageSource & { width: number; height: number };
+
+function createCanvas(width: number, height: number): OffscreenCanvas | HTMLCanvasElement {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(width, height);
+  return Object.assign(document.createElement('canvas'), { width, height });
+}
+
+/**
+ * Firefox samples nearest-neighbour when one drawImage shrinks by more than
+ * ~2x, so 25% resizes come out jagged with moiré. Halving in steps first gives
+ * every browser a clean, box-filtered result (Chrome's output is unchanged).
+ */
+function prescale(
+  source: Drawable,
+  rect: { x: number; y: number; width: number; height: number },
+  target: ImageDimensions,
+): { source: Drawable; x: number; y: number; width: number; height: number } {
+  const steps = halvingSteps(rect, target);
+  if (!steps.length) return { source, ...rect };
+
+  let current: Drawable = source;
+  let from = rect;
+  for (const step of steps) {
+    const canvas = createCanvas(step.width, step.height);
+    const ctx = canvas.getContext('2d') as Ctx2D | null;
+    if (!ctx) return { source, ...rect };
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(current, from.x, from.y, from.width, from.height, 0, 0, step.width, step.height);
+    current = canvas;
+    from = { x: 0, y: 0, ...step };
+  }
+  return { source: current, ...from };
+}
+
+/**
  * Draw `source` into `ctx` (sized outW×outH) applying crop, rotation, flips,
  * resize and colour adjustments in a single pass.
  */
 export function renderEdited(
   ctx: Ctx2D,
-  source: CanvasImageSource & { width: number; height: number },
+  original: Drawable,
   edit: EditState | undefined,
   out: ImageDimensions,
   options: { background?: string } = {},
 ): void {
-  const crop = edit?.crop;
-  const srcX = crop?.x ?? 0;
-  const srcY = crop?.y ?? 0;
-  const srcW = crop?.width ?? source.width;
-  const srcH = crop?.height ?? source.height;
-  const edited = getEditedSize({ width: source.width, height: source.height }, edit);
+  const crop = {
+    x: edit?.crop?.x ?? 0,
+    y: edit?.crop?.y ?? 0,
+    width: edit?.crop?.width ?? original.width,
+    height: edit?.crop?.height ?? original.height,
+  };
+  const edited = getEditedSize({ width: original.width, height: original.height }, edit);
+  // Target size in the source's orientation (a 90° turn swaps the axes)
+  const sideways = edit?.rotation === 90 || edit?.rotation === 270;
+  const src = prescale(original, crop, sideways ? { width: out.height, height: out.width } : out);
 
   ctx.save();
   if (options.background) {
@@ -113,7 +169,9 @@ export function renderEdited(
   ctx.scale(out.width / edited.width, out.height / edited.height);
   if (edit?.rotation) ctx.rotate((edit.rotation * Math.PI) / 180);
   ctx.scale(edit?.flipHorizontal ? -1 : 1, edit?.flipVertical ? -1 : 1);
-  ctx.drawImage(source, srcX, srcY, srcW, srcH, -srcW / 2, -srcH / 2, srcW, srcH);
+  // The transform works in crop pixels, so a prescaled source still fills the crop's box
+  const { width: w, height: h } = crop;
+  ctx.drawImage(src.source, src.x, src.y, src.width, src.height, -w / 2, -h / 2, w, h);
   ctx.restore();
 
   if (edit && hasColorAdjustments(edit) && !useCtxFilter) {

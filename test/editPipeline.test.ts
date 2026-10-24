@@ -3,6 +3,7 @@ import {
   buildCssFilter,
   getEditedSize,
   getOutputSize,
+  halvingSteps,
   hasEdits,
   hasGeometryEdits,
 } from '../src/lib/editPipeline';
@@ -90,5 +91,31 @@ describe('edit helpers', () => {
     expect(hasEdits({ ...DEFAULT_EDIT_STATE, saturation: 5 })).toBe(true);
     expect(hasGeometryEdits({ ...DEFAULT_EDIT_STATE, saturation: 5 })).toBe(false);
     expect(hasGeometryEdits({ ...DEFAULT_EDIT_STATE, flipVertical: true })).toBe(true);
+  });
+});
+
+describe('halvingSteps', () => {
+  test('halves until the next step would undershoot the target', () => {
+    expect(halvingSteps(photo, { width: 1000, height: 750 })).toEqual([
+      { width: 2000, height: 1500 },
+      { width: 1000, height: 750 },
+    ]);
+    // 25% of 4000 is 1000; 20% stops at 1000 and leaves the last <2x to drawImage
+    expect(halvingSteps(photo, { width: 800, height: 600 }).at(-1)).toEqual({
+      width: 1000,
+      height: 750,
+    });
+  });
+
+  test('does nothing for small reductions or upscaling', () => {
+    expect(halvingSteps(photo, { width: 2500, height: 1875 })).toEqual([]);
+    expect(halvingSteps(photo, { width: 8000, height: 6000 })).toEqual([]);
+  });
+
+  test('halves each axis independently when the aspect ratio changes', () => {
+    expect(halvingSteps(photo, { width: 1000, height: 3000 })).toEqual([
+      { width: 2000, height: 3000 },
+      { width: 1000, height: 3000 },
+    ]);
   });
 });
