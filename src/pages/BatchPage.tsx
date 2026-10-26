@@ -2,110 +2,61 @@ import { BatchControls } from '@/components/BatchControls';
 import { BatchQueue } from '@/components/BatchQueue';
 import { BatchUploader } from '@/components/BatchUploader';
 import { ControlPanel } from '@/components/ControlPanel';
-import { Footer } from '@/components/Footer';
-import { Navbar } from '@/components/Navbar';
+import { Hero, PageShell } from '@/components/PageShell';
 import { useBatchProcessor } from '@/hooks/useBatchProcessor';
-import { useBatchStats } from '@/store/batchStore';
-import { useImageStore } from '@/store/imageStore';
-import { useEffect, useRef } from 'react';
+import { useBatchStats, useBatchStore } from '@/store/batchStore';
 
 export function BatchPage() {
-  const { settings, updateSettings } = useImageStore();
-  const stats = useBatchStats();
-  const { start, isProcessing: isProcessorBusy } = useBatchProcessor();
+  const settings = useBatchStore((s) => s.settings);
+  const updateSettings = useBatchStore((s) => s.updateSettings);
+  const resetSettings = useBatchStore((s) => s.resetSettings);
+  const { total } = useBatchStats();
+  const { start, isProcessing } = useBatchProcessor();
 
-  // Set default resize to 100% on mount
-  const hasInitialized = useRef(false);
-  useEffect(() => {
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
-    // Only set if not already set
-    if (!settings.width || !settings.height) {
-      updateSettings({ width: undefined, height: undefined });
-    }
-  }, [settings.width, settings.height, updateSettings]);
-
-  const handleResetSettings = () => {
-    updateSettings({
-      format: 'webp',
-      quality: 85,
-      maintainAspectRatio: true,
-      stripMetadata: true,
-      effort: 4,
-      progressive: true,
-      chromaSubsampling: '4:2:0',
-      width: undefined,
-      height: undefined,
-    });
-  };
-
-  // Default dimensions for the control panel (since we don't have a single image)
-  const defaultDimensions = { width: 1920, height: 1080 };
+  if (total === 0) {
+    return (
+      <PageShell className='relative isolate pt-14 pb-20 sm:pt-20'>
+        <div aria-hidden className='hero-glow absolute inset-x-0 top-0 -z-10 h-130' />
+        <Hero
+          title={
+            <>
+              Many images.
+              <br />
+              <span className='text-brand'>One ZIP.</span>
+            </>
+          }
+          subtitle='Up to 20 images, same settings, processed in parallel.'
+        />
+        <div className='mx-auto mt-10 max-w-2xl'>
+          <BatchUploader />
+        </div>
+      </PageShell>
+    );
+  }
 
   return (
-    <div className='flex min-h-screen flex-col bg-linear-to-br from-[#0a0f14] via-[#12171d] to-[#0a0f14]'>
-      <Navbar />
+    <PageShell className='py-6 sm:py-10'>
+      <div className='mb-6 flex flex-wrap items-end justify-between gap-4'>
+        <h1 className='text-[28px] font-semibold tracking-tight sm:text-[34px]'>Batch</h1>
+        <BatchUploader compact />
+      </div>
 
-      <main className='container mx-auto flex-1 px-4 py-8'>
-        <div className='mx-auto max-w-6xl space-y-8'>
-          {/* Header */}
-          <div className='space-y-4 text-center'>
-            <h1 className='bg-linear-to-r from-white to-white/60 bg-clip-text text-3xl font-extrabold tracking-tight text-transparent md:text-4xl'>
-              Batch Processing
-            </h1>
-            <p className='text-muted-foreground mx-auto max-w-lg'>
-              Compress up to 20 images at once with shared settings. Download all as a single ZIP
-              file.
-            </p>
-          </div>
-
-          {/* Upload Area */}
-          {stats.total === 0 ? (
-            <BatchUploader />
-          ) : (
-            <div className='flex items-center justify-between'>
-              <p className='text-muted-foreground text-sm'>
-                {stats.total} image{stats.total !== 1 ? 's' : ''} in queue
-              </p>
-              <BatchUploader compact />
-            </div>
-          )}
-
-          {/* Main Layout */}
-          {stats.total > 0 && (
-            <div className='animate-in fade-in grid grid-cols-1 gap-8 duration-300 lg:grid-cols-3'>
-              {/* Left Column: Controls (on desktop, above queue) + Queue */}
-              <div className='space-y-6 lg:col-span-2'>
-                {/* Stats & Controls - On Desktop, show above queue */}
-                <div className='hidden lg:block'>
-                  <BatchControls onStartProcessing={start} isProcessorBusy={isProcessorBusy} />
-                </div>
-
-                {/* Queue */}
-                <BatchQueue />
-              </div>
-
-              {/* Right Column: Settings (on desktop) */}
-              <div className='space-y-6'>
-                <ControlPanel
-                  settings={settings}
-                  onSettingsChange={updateSettings}
-                  originalDimensions={defaultDimensions}
-                  onReset={handleResetSettings}
-                  batchMode
-                />
-
-                {/* Controls - On Mobile, show below settings */}
-                <div className='lg:hidden'>
-                  <BatchControls onStartProcessing={start} isProcessorBusy={isProcessorBusy} />
-                </div>
-              </div>
-            </div>
-          )}
+      <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8'>
+        <div className='min-w-0 space-y-6'>
+          <BatchControls onStart={start} />
+          <BatchQueue />
         </div>
-      </main>
-
-      <Footer />
-    </div>
+        <aside className='lg:sticky lg:top-20 lg:self-start'>
+          <fieldset disabled={isProcessing} className='disabled:opacity-60'>
+            <legend className='sr-only'>Batch settings</legend>
+            <ControlPanel
+              settings={settings}
+              onSettingsChange={updateSettings}
+              onReset={resetSettings}
+            />
+          </fieldset>
+        </aside>
+      </div>
+    </PageShell>
   );
 }

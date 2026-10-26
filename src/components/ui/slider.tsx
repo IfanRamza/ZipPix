@@ -1,5 +1,5 @@
-import * as React from 'react';
 import * as SliderPrimitive from '@radix-ui/react-slider';
+import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -11,10 +11,7 @@ function Slider({
   max = 100,
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
-  const _values = React.useMemo(
-    () => (Array.isArray(value) ? value : Array.isArray(defaultValue) ? defaultValue : [min, max]),
-    [value, defaultValue, min, max],
-  );
+  const count = (Array.isArray(value) ? value : (defaultValue ?? [min])).length;
 
   return (
     <SliderPrimitive.Root
@@ -24,29 +21,19 @@ function Slider({
       min={min}
       max={max}
       className={cn(
-        'relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
+        'relative flex h-7 w-full touch-none items-center select-none data-[disabled]:opacity-50',
         className,
       )}
       {...props}
     >
-      <SliderPrimitive.Track
-        data-slot='slider-track'
-        className={cn(
-          'bg-muted relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5',
-        )}
-      >
-        <SliderPrimitive.Range
-          data-slot='slider-range'
-          className={cn(
-            'bg-primary absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full',
-          )}
-        />
+      <SliderPrimitive.Track className='bg-secondary relative h-1 grow overflow-hidden rounded-full'>
+        <SliderPrimitive.Range className='bg-primary absolute h-full' />
       </SliderPrimitive.Track>
-      {Array.from({ length: _values.length }, (_, index) => (
+      {Array.from({ length: count }, (_, index) => (
         <SliderPrimitive.Thumb
-          data-slot='slider-thumb'
           key={index}
-          className='border-primary ring-ring/50 block size-4 shrink-0 rounded-full border bg-white shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50'
+          aria-label={props['aria-label']}
+          className='focus-visible:ring-ring block size-6 rounded-full bg-white shadow-[0_0.5px_4px_rgb(0_0_0/0.12),0_6px_13px_rgb(0_0_0/0.12)] ring-black/5 transition-transform outline-none focus-visible:ring-4 active:scale-110'
         />
       ))}
     </SliderPrimitive.Root>

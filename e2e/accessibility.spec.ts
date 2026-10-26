@@ -42,6 +42,8 @@ test.describe('Accessibility', () => {
 
   test('verify keyboard navigation', async ({ page }) => {
     await page.goto('/');
+    // Pages are lazy-loaded: wait for content before tabbing
+    await expect(page.getByRole('button', { name: 'Select Image' })).toBeVisible();
 
     // Tab through interactive elements
     await page.keyboard.press('Tab'); // Skip to main content or logo

@@ -11,11 +11,17 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 ### Core Features
 
 - **🔒 Privacy First** - 100% client-side processing. No server uploads.
-- **🖼️ Modern Formats** - Support for WebP, AVIF, PNG, and JPEG output.
-- **📐 High-Quality Resizing** - Lanczos3 interpolation via `pica` for sharp scaling.
-- **⚡ Smart Presets** - Quick options for Web, Print, Archive, and Max Compression.
-- **🔍 Live Comparison** - Interactive split-slider to compare original vs. compressed.
+- **🖼️ Modern Formats** - WebP, AVIF, PNG and JPEG output (formats your browser cannot encode are detected and disabled).
+- **🗜️ Better Encoders** - MozJPEG and OxiPNG (WASM, the same codecs Squoosh uses) for JPEG and PNG, falling back to the browser encoder if they can't load.
+- **⚙️ Advanced Options** - Lossless WebP, full colour detail (4:4:4 chroma) for JPEG and AVIF, and AVIF encoding effort.
+- **🎨 Reduce Colours** - Quantize PNGs to 2–256 colours (like TinyPNG) for screenshots and graphics up to ~80% smaller.
+- **📉 Never Larger** - If re-encoding wouldn't shrink an unedited image, ZipPix hands back your original (only when it has no metadata to strip).
+- **📱 HEIC Input** - iPhone photos (HEIC/HEIF) are decoded in the browser, so they work in every browser, not just Safari.
+- **📐 Resizing** - Percentage scaling or exact dimensions, applied after crop and rotation without distortion.
+- **⚡ Smart Presets** - Quick options for Web, Smallest, Photo and Lossless.
+- **🔍 Live Comparison** - Split-slider to compare original vs. compressed, with zoom (buttons, Ctrl/⌘ + scroll, pinch, double-click for 100%) and pan to inspect compression artefacts pixel by pixel.
 - **🗑️ Metadata Stripping** - Automatically removes EXIF/IPTC/XMP for privacy.
+- **💾 Remembered Settings** - Your last format, quality and target size are kept in the browser for next time.
 
 ### Image Editing (Non-Destructive)
 
@@ -30,6 +36,7 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 - **📦 Up to 20 Images** - Process multiple images at once
 - **🏷️ Rename Outputs** - Edit filenames before download
 - **📥 ZIP Download** - Download all compressed images as a single ZIP file
+- **🎯 Target Size** - Set a maximum file size; each image gets the highest quality that fits
 - **📊 Progress Tracking** - Per-image status and format conversion display
 
 ### Security
@@ -51,14 +58,15 @@ ZipPix is a modern, privacy-focused image compression and editing tool built wit
 | Category           | Technology                            |
 | ------------------ | ------------------------------------- |
 | Framework          | React 19 + TypeScript                 |
-| Build Tool         | Vite                                  |
+| Build Tool         | Vite 8                                |
 | Styling            | Tailwind CSS v4                       |
-| UI Components      | Shadcn UI (Radix Primitives)          |
+| UI Components      | Radix Primitives (Slider, Switch)     |
 | State Management   | Zustand                               |
-| Image Processing   | Canvas API + Pica + Web Workers       |
+| Image Processing   | OffscreenCanvas + Web Worker pool     |
+| Codecs             | jSquash (MozJPEG, OxiPNG, AVIF)       |
 | Background Removal | @imgly/background-removal (ONNX/WASM) |
 | Cropping           | react-image-crop                      |
-| ZIP Generation     | JSZip                                 |
+| ZIP Generation     | fflate (lazy-loaded)                  |
 | Icons              | Lucide React                          |
 | Routing            | React Router DOM                      |
 
@@ -119,7 +127,7 @@ npx playwright test
 src/
 ├── components/     # UI components (Navbar, ControlPanel, ImageEditor, etc.)
 ├── hooks/          # Custom React hooks (useCompressionWorker, useBatchProcessor)
-├── lib/            # Utilities (imageProcessor, metadataParser, security, backgroundRemover)
+├── lib/            # Utilities (editPipeline, formats, image, zip, metadataParser, security, backgroundRemover)
 ├── pages/          # Route pages (HomePage, BatchPage, PrivacyPolicy, TermsOfService)
 ├── store/          # Zustand state management (imageStore, batchStore)
 ├── workers/        # Web Workers for compression

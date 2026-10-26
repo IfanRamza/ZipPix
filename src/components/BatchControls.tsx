@@ -1,126 +1,122 @@
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { downloadFile } from '@/lib/image';
+import { calculateReduction, formatBytes } from '@/lib/utils';
+import { buildZip } from '@/lib/zip';
 import { useBatchStats, useBatchStore } from '@/store/batchStore';
-import { useImageStore } from '@/store/imageStore';
-import JSZip from 'jszip';
-import { Download, Loader2, Pause, Play } from 'lucide-react';
+import { Download, Pause, Play } from 'lucide-react';
+import { useState } from 'react';
 
 interface BatchControlsProps {
-  onStartProcessing: () => void;
-  isProcessorBusy?: boolean;
+  onStart: () => void;
 }
 
-export function BatchControls({ onStartProcessing, isProcessorBusy = false }: BatchControlsProps) {
-  const { isProcessing, isPaused, items, pauseProcessing, resumeProcessing } = useBatchStore();
-  const { settings } = useImageStore();
+export function BatchControls({ onStart }: BatchControlsProps) {
+  const isProcessing = useBatchStore((s) => s.isProcessing);
+  const isPaused = useBatchStore((s) => s.isPaused);
+  const pauseProcessing = useBatchStore((s) => s.pauseProcessing);
+  const resumeProcessing = useBatchStore((s) => s.resumeProcessing);
   const stats = useBatchStats();
+  const [isZipping, setIsZipping] = useState(false);
 
-  const allComplete = stats.complete === stats.total && stats.total > 0;
-  const hasErrors = stats.errors > 0;
-  const canStart = stats.total > 0 && !isProcessing && !allComplete;
-  const canDownload = stats.complete > 0;
+  const done = stats.complete + stats.errors;
+  const progress = stats.total ? (done / stats.total) * 100 : 0;
+  const hasPending = stats.queued > 0 || stats.errors > 0;
+  const saved = calculateReduction(stats.originalBytes, stats.compressedBytes);
 
   const handleDownloadZip = async () => {
-    const zip = new JSZip();
-
-    items.forEach((item) => {
-      if (item.compressedBlob && item.status === 'complete') {
-        const filename = `${item.outputFilename}.${settings.format}`;
-        zip.file(filename, item.compressedBlob);
-      }
-    });
-
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `zippix_batch_${Date.now()}.zip`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setIsZipping(true);
+    try {
+      const entries = useBatchStore
+        .getState()
+        .items.filter((i) => i.status === 'complete' && i.compressedBlob)
+        .map((i) => ({ name: i.outputFilename, blob: i.compressedBlob! }));
+      downloadFile(await buildZip(entries), `zippix_${new Date().toISOString().slice(0, 10)}.zip`);
+    } finally {
+      setIsZipping(false);
+    }
   };
 
   return (
-    <Card className='bg-background/40 border-border/50'>
-      <CardContent className='space-y-4 p-4'>
-        {/* Progress Summary */}
-        <div className='text-center'>
-          <div className='text-3xl font-bold text-cyan-400'>
-            {stats.complete}/{stats.total}
+    <div className='bg-card shadow-card space-y-5 rounded-3xl p-5'>
+      <div className='flex items-end justify-between gap-4'>
+        <div>
+          <p className='text-muted-foreground text-[12px] font-medium'>Processed</p>
+          <p className='tabular text-[34px] leading-tight font-semibold tracking-tight'>
+            {stats.complete}
+            <span className='text-muted-foreground'>/{stats.total}</span>
+          </p>
+        </div>
+        {stats.complete > 0 && (
+          <div className='text-right'>
+            <p className='text-muted-foreground text-[12px] font-medium'>Saved</p>
+            <p className='text-success tabular text-[22px] font-semibold tracking-tight'>
+              {saved > 0 ? `−${saved.toFixed(0)}%` : '0%'}
+            </p>
+            <p className='text-muted-foreground tabular text-[12px]'>
+              {formatBytes(stats.originalBytes, 1)} → {formatBytes(stats.compressedBytes, 1)}
+            </p>
           </div>
-          <div className='text-muted-foreground text-xs'>Images Processed</div>
-          {hasErrors && (
-            <div className='mt-1 text-xs text-red-400'>
-              {stats.errors} error{stats.errors !== 1 ? 's' : ''}
-            </div>
-          )}
-        </div>
+        )}
+      </div>
 
-        {/* Progress Bar */}
-        <div className='bg-muted h-2 w-full overflow-hidden rounded-full'>
-          <div
-            className='h-full bg-linear-to-r from-cyan-500 to-blue-500 transition-all duration-300'
-            style={{
-              width: `${stats.total > 0 ? (stats.complete / stats.total) * 100 : 0}%`,
-            }}
-          />
-        </div>
+      <div
+        role='progressbar'
+        aria-label='Batch progress'
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress)}
+        className='bg-secondary h-1.5 overflow-hidden rounded-full'
+      >
+        <div
+          className='bg-primary h-full rounded-full transition-[width] duration-500 ease-out'
+          style={{ width: `${progress}%` }}
+        />
+      </div>
 
-        {/* Action Buttons */}
-        <div className='space-y-2'>
-          {!isProcessing && !allComplete && (
-            <Button
-              className='w-full cursor-pointer bg-linear-to-r from-cyan-500 to-blue-500 hover:opacity-90'
-              onClick={onStartProcessing}
-              disabled={!canStart || isProcessorBusy}
-            >
-              <Play className='mr-2 h-4 w-4' />
-              Start Processing
+      {stats.overTarget > 0 && (
+        <p className='text-warning text-[13px]'>
+          {stats.overTarget === 1 ? '1 image is' : `${stats.overTarget} images are`} still over the
+          target size at the lowest quality. Reduce the size or try AVIF.
+        </p>
+      )}
+
+      {stats.errors > 0 && !isProcessing && (
+        <p className='text-destructive text-[13px]'>
+          {stats.errors} failed — start again to retry.
+        </p>
+      )}
+
+      <div className='flex flex-col gap-2'>
+        {isProcessing ? (
+          <Button
+            size='lg'
+            variant='secondary'
+            onClick={isPaused ? resumeProcessing : pauseProcessing}
+          >
+            {isPaused ? <Play /> : <Pause />}
+            {isPaused ? 'Resume' : 'Pause'}
+          </Button>
+        ) : (
+          hasPending && (
+            <Button size='lg' onClick={onStart}>
+              <Play />
+              {stats.complete > 0 ? 'Process Remaining' : 'Start Processing'}
             </Button>
-          )}
-
-          {isProcessing && (
-            <Button
-              className='w-full cursor-pointer'
-              variant={isPaused ? 'default' : 'outline'}
-              onClick={isPaused ? resumeProcessing : pauseProcessing}
-            >
-              {isPaused ? (
-                <>
-                  <Play className='mr-2 h-4 w-4' />
-                  Resume
-                </>
-              ) : (
-                <>
-                  <Pause className='mr-2 h-4 w-4' />
-                  Pause
-                </>
-              )}
-            </Button>
-          )}
-
-          {/* Download and Remove in same row */}
-          {(canDownload || (stats.total > 0 && !isProcessing)) && (
-            <div className='flex gap-2'>
-              {canDownload && (
-                <Button
-                  className='flex-1 cursor-pointer bg-green-600 hover:bg-green-700'
-                  onClick={handleDownloadZip}
-                  disabled={isProcessing && !isPaused}
-                >
-                  {isProcessorBusy && !isPaused ? (
-                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                  ) : (
-                    <Download className='mr-2 h-4 w-4' />
-                  )}
-                  Download ZIP
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          )
+        )}
+        {stats.complete > 0 && (
+          <Button
+            size='lg'
+            variant={hasPending || isProcessing ? 'secondary' : 'default'}
+            onClick={handleDownloadZip}
+            disabled={isZipping || (isProcessing && !isPaused)}
+          >
+            {isZipping ? <LoadingSpinner size={18} /> : <Download />}
+            Download ZIP
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }

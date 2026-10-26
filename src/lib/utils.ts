@@ -1,3 +1,4 @@
+import { HEIC_TYPES, isDeclaredHeic } from '@/lib/heic';
 import { strictSanitizeFilename } from '@/lib/security';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -41,8 +42,11 @@ export function formatBytes(bytes: number, decimals: number = 2): string {
  */
 export function validateFileType(fileOrType: File | string): boolean {
   const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
-  const mimeType = typeof fileOrType === 'string' ? fileOrType : fileOrType.type;
-  return validTypes.includes(mimeType);
+  if (typeof fileOrType === 'string') {
+    return validTypes.includes(fileOrType) || HEIC_TYPES.includes(fileOrType);
+  }
+  // Windows reports HEIC files with no MIME type, so fall back to the extension
+  return validTypes.includes(fileOrType.type) || isDeclaredHeic(fileOrType);
 }
 
 /**
@@ -63,6 +67,11 @@ export function generateOutputFilename(
 ): string {
   const lastDot = originalName.lastIndexOf('.');
   const baseName = lastDot > 0 ? originalName.slice(0, lastDot) : originalName;
-  const safeBase = strictSanitizeFilename(baseName);
-  return `${safeBase}_${suffix}.${format}`;
+  // Sanitize with the real extension attached so dots inside the name are not mistaken for one
+  return strictSanitizeFilename(`${baseName}_${suffix}.${format}`);
+}
+
+/** Default output base name (no extension) for a file, e.g. "photo.jpg" → "photo_compressed" */
+export function defaultOutputBase(originalName: string): string {
+  return generateOutputFilename(originalName, 'png').replace(/\.png$/, '');
 }

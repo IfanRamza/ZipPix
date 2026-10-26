@@ -1,191 +1,134 @@
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import type { ParsedMetadata } from '@/lib/metadataParser';
 import { hasSignificantMetadata } from '@/lib/metadataParser';
-import {
-  Calendar,
-  Camera,
-  ChevronDown,
-  ChevronUp,
-  MapPin,
-  ShieldAlert,
-  Wrench,
-} from 'lucide-react';
-import { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { Calendar, Camera, ChevronDown, MapPin, ShieldCheck, Wrench } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 
 interface MetadataViewerProps {
   metadata: ParsedMetadata | null;
-  willBeStripped?: boolean;
 }
 
-export function MetadataViewer({ metadata, willBeStripped = true }: MetadataViewerProps) {
+export function MetadataViewer({ metadata }: MetadataViewerProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  if (!hasSignificantMetadata(metadata)) {
+  if (!metadata || !hasSignificantMetadata(metadata)) {
     return (
-      <Card className='border-border/50 bg-background/40 backdrop-blur-xl'>
-        <CardContent className='p-4'>
-          <div className='text-muted-foreground flex items-center gap-2 text-sm'>
-            <ShieldAlert className='h-4 w-4 text-green-400' />
-            <span>No metadata detected in this image</span>
-          </div>
-        </CardContent>
-      </Card>
+      <div className='bg-card shadow-card flex items-center gap-3 rounded-2xl px-4 py-3.5 text-[15px]'>
+        <ShieldCheck className='text-success size-5' />
+        <span>No personal metadata found in this image.</span>
+      </div>
     );
   }
 
+  const { camera, location, dateTime, software } = metadata;
+  const hasGps = location?.latitude !== undefined;
+
   return (
-    <Card className='border-border/50 bg-background/40 backdrop-blur-xl'>
-      <CardContent className='space-y-3 p-4'>
-        {/* Header */}
-        <Button
-          variant='ghost'
-          className='flex h-auto w-full items-center justify-between p-0 hover:bg-transparent'
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          <div className='flex items-center gap-2'>
-            <ShieldAlert className='h-4 w-4 text-amber-400' />
-            <span className='text-sm font-medium'>Metadata Detected</span>
-            {willBeStripped && (
-              <Badge variant='outline' className='border-amber-500/50 text-xs text-amber-400'>
-                Will be stripped
-              </Badge>
-            )}
-          </div>
-          {isExpanded ? (
-            <ChevronUp className='text-muted-foreground h-4 w-4' />
-          ) : (
-            <ChevronDown className='text-muted-foreground h-4 w-4' />
+    <div className='bg-card shadow-card overflow-hidden rounded-2xl'>
+      <button
+        type='button'
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded((v) => !v)}
+        className='hover:bg-secondary/50 focus-visible:ring-ring flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors outline-none focus-visible:ring-4 focus-visible:ring-inset'
+      >
+        <ShieldCheck className='text-success size-5 shrink-0' />
+        <span className='min-w-0 flex-1'>
+          <span className='block text-[15px] font-medium'>Metadata will be removed</span>
+          <span className='text-muted-foreground block truncate text-[13px]'>
+            {[
+              camera?.make && 'Camera',
+              hasGps && 'GPS location',
+              dateTime && 'Date',
+              software && 'Software',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </span>
+        <ChevronDown
+          className={cn(
+            'text-muted-foreground size-4 transition-transform',
+            isExpanded && 'rotate-180',
           )}
-        </Button>
+        />
+      </button>
 
-        {/* Collapsed Summary */}
-        {!isExpanded && (
-          <div className='text-muted-foreground flex flex-wrap gap-2 text-xs'>
-            {metadata?.camera?.make && (
-              <span className='flex items-center gap-1'>
-                <Camera className='h-3 w-3' />
-                {metadata.camera.make}
-              </span>
-            )}
-            {metadata?.location?.latitude && (
-              <span className='flex items-center gap-1 text-red-400'>
-                <MapPin className='h-3 w-3' />
-                GPS Data
-              </span>
-            )}
-            {metadata?.dateTime && (
-              <span className='flex items-center gap-1'>
-                <Calendar className='h-3 w-3' />
-                Date Info
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Expanded Details */}
-        {isExpanded && (
-          <div className='border-border/50 animate-in fade-in slide-in-from-top-2 space-y-4 border-t pt-2'>
-            {/* Camera Info */}
-            {metadata?.camera && (metadata.camera.make || metadata.camera.model) && (
-              <MetadataSection icon={<Camera className='h-4 w-4' />} title='Camera'>
-                {metadata.camera.make && <MetadataRow label='Make' value={metadata.camera.make} />}
-                {metadata.camera.model && (
-                  <MetadataRow label='Model' value={metadata.camera.model} />
-                )}
-                {metadata.camera.lens && <MetadataRow label='Lens' value={metadata.camera.lens} />}
-                {metadata.camera.iso && (
-                  <MetadataRow label='ISO' value={metadata.camera.iso.toString()} />
-                )}
-                {metadata.camera.aperture && (
-                  <MetadataRow label='Aperture' value={metadata.camera.aperture} />
-                )}
-                {metadata.camera.shutterSpeed && (
-                  <MetadataRow label='Shutter' value={metadata.camera.shutterSpeed} />
-                )}
-              </MetadataSection>
-            )}
-
-            {/* Location - Warning Style */}
-            {metadata?.location?.latitude && (
-              <MetadataSection
-                icon={<MapPin className='h-4 w-4 text-red-400' />}
-                title='Location (Privacy Risk)'
-                warning
-              >
-                <MetadataRow
-                  label='GPS'
-                  value={`${metadata.location.latitude?.toFixed(
-                    4,
-                  )}°, ${metadata.location.longitude?.toFixed(4)}°`}
-                />
-                {metadata.location.altitude && (
-                  <MetadataRow label='Altitude' value={`${metadata.location.altitude}m`} />
-                )}
-              </MetadataSection>
-            )}
-
-            {/* Date/Time */}
-            {metadata?.dateTime && (
-              <MetadataSection icon={<Calendar className='h-4 w-4' />} title='Date & Time'>
-                <MetadataRow label='Taken' value={new Date(metadata.dateTime).toLocaleString()} />
-              </MetadataSection>
-            )}
-
-            {/* Software */}
-            {metadata?.software && (metadata.software.software || metadata.software.artist) && (
-              <MetadataSection icon={<Wrench className='h-4 w-4' />} title='Software & Author'>
-                {metadata.software.software && (
-                  <MetadataRow label='Software' value={metadata.software.software} />
-                )}
-                {metadata.software.artist && (
-                  <MetadataRow label='Artist' value={metadata.software.artist} />
-                )}
-                {metadata.software.copyright && (
-                  <MetadataRow label='Copyright' value={metadata.software.copyright} />
-                )}
-              </MetadataSection>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {isExpanded && (
+        <div className='divide-hairline border-hairline motion-safe:animate-in motion-safe:fade-in divide-y border-t'>
+          {camera && (
+            <Section icon={<Camera />} title='Camera'>
+              <Row label='Make' value={camera.make} />
+              <Row label='Model' value={camera.model} />
+              <Row label='Lens' value={camera.lens} />
+              <Row label='ISO' value={camera.iso?.toString()} />
+              <Row label='Aperture' value={camera.aperture} />
+              <Row label='Shutter' value={camera.shutterSpeed} />
+            </Section>
+          )}
+          {hasGps && (
+            <Section icon={<MapPin />} title='Location' warning>
+              <Row
+                label='GPS'
+                value={`${location!.latitude?.toFixed(4)}°, ${location!.longitude?.toFixed(4)}°`}
+              />
+              <Row
+                label='Altitude'
+                value={location!.altitude ? `${location!.altitude} m` : undefined}
+              />
+            </Section>
+          )}
+          {dateTime && (
+            <Section icon={<Calendar />} title='Date & Time'>
+              <Row label='Taken' value={new Date(dateTime).toLocaleString()} />
+            </Section>
+          )}
+          {software && (
+            <Section icon={<Wrench />} title='Software & Author'>
+              <Row label='Software' value={software.software} />
+              <Row label='Artist' value={software.artist} />
+              <Row label='Copyright' value={software.copyright} />
+            </Section>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
-// Helper Components
-function MetadataSection({
+function Section({
   icon,
   title,
   warning,
   children,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   warning?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div
-      className={`space-y-2 rounded p-3 ${
-        warning ? 'border border-red-500/20 bg-red-500/10' : 'bg-background/50'
-      }`}
-    >
-      <div className='flex items-center gap-2 text-sm font-medium'>
+    <div className='space-y-1.5 px-4 py-3'>
+      <div
+        className={cn(
+          'flex items-center gap-2 text-[13px] font-semibold [&_svg]:size-4',
+          warning && 'text-destructive',
+        )}
+      >
         {icon}
         {title}
+        {warning && <span className='font-normal'>· privacy risk</span>}
       </div>
-      <div className='space-y-1 pl-6'>{children}</div>
+      <dl className='space-y-1 pl-6'>{children}</dl>
     </div>
   );
 }
 
-function MetadataRow({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
   return (
-    <div className='flex justify-between text-xs'>
-      <span className='text-muted-foreground'>{label}</span>
-      <span className='text-foreground max-w-[200px] truncate font-mono'>{value}</span>
+    <div className='flex justify-between gap-4 text-[13px]'>
+      <dt className='text-muted-foreground'>{label}</dt>
+      <dd className='max-w-[60%] truncate text-right'>{value}</dd>
     </div>
   );
 }
